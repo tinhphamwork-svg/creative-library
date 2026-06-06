@@ -1,0 +1,4 @@
+# Không push files này lên GAS
+**/*.md
+**/.DS_Store
+**/node_modules

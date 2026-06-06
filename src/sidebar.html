@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Creative App</title>
+  <style>
+    /* RESET */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, Arial, sans-serif;
+      font-size: 12px;
+      background: #f8fafc;
+      color: #1e293b;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* TABS */
+    .tabs { display: flex; background: #fff; border-bottom: 2px solid #e2e8f0; flex-shrink: 0; }
+    .tab-btn {
+      flex: 1; padding: 10px 4px; border: none; background: transparent;
+      cursor: pointer; font-size: 11px; font-weight: 600; color: #94a3b8;
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+
+    /* FILTER BAR */
+    .filter-bar { background: #fff; padding: 8px 8px 6px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
+    .filter-row { display: flex; gap: 4px; flex-wrap: wrap; }
+    .filter-row select {
+      flex: 1; min-width: 70px; padding: 4px; border: 1px solid #e2e8f0;
+      border-radius: 4px; font-size: 11px; color: #475569; background: #f8fafc;
+      cursor: pointer; appearance: auto;
+    }
+    .filter-row select:focus { outline: 1px solid #3b82f6; border-color: #3b82f6; }
+
+    /* ACTION BAR */
+    .action-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 8px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
+    }
+    .count-label { font-size: 11px; color: #64748b; }
+    .btn-new {
+      padding: 5px 10px; background: #3b82f6; color: #fff; border: none;
+      border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-new:hover { background: #2563eb; }
+
+    /* LISTS */
+    .list-container { flex: 1; overflow-y: auto; padding: 6px; }
+    .list-container::-webkit-scrollbar { width: 4px; }
+    .list-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    /* CREATIVE CARD */
+    .creative-card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;
+      padding: 8px; margin-bottom: 6px; cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .creative-card:hover { border-color: #93c5fd; box-shadow: 0 1px 6px rgba(59,130,246,0.12); }
+    .card-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .card-title { font-size: 12px; font-weight: 600; color: #1e293b; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    .card-format { font-size: 10px; color: #64748b; }
+    .card-roas { font-size: 11px; font-weight: 700; color: #059669; margin-left: auto; }
+
+    /* CONCEPT CARD */
+    .concept-card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;
+      padding: 8px; margin-bottom: 6px; cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .concept-card:hover { border-color: #a78bfa; box-shadow: 0 1px 6px rgba(167,139,250,0.12); }
+    .concept-title { font-size: 12px; font-weight: 600; color: #1e293b; margin-bottom: 4px; }
+    .concept-stats { display: flex; gap: 8px; margin-top: 4px; }
+    .stat-chip { font-size: 10px; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 10px; }
+
+    /* STATUS BADGES */
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; color: #fff; white-space: nowrap; }
+    .badge-Testing         { background: #3b82f6; }
+    .badge-Winning         { background: #22c55e; }
+    .badge-Scaling         { background: #a855f7; }
+    .badge-Fatigued        { background: #f97316; }
+    .badge-Killed          { background: #ef4444; }
+    .badge-Not-Briefed     { background: #94a3b8; }
+    .badge-Briefed         { background: #60a5fa; }
+    .badge-In-Production   { background: #f59e0b; }
+    .badge-Ready-to-Launch { background: #8b5cf6; }
+    .badge-Live            { background: #10b981; }
+    .badge-Active          { background: #22c55e; }
+    .badge-Paused          { background: #f97316; }
+    .badge-default         { background: #94a3b8; }
+
+    /* DRAWER */
+    .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.25); z-index: 100; }
+    .drawer-overlay.open { display: block; }
+    .drawer {
+      position: fixed; top: 0; right: 0; width: 100%; height: 100%;
+      background: #fff; z-index: 101; display: flex; flex-direction: column;
+      transform: translateX(100%); transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+    .drawer.open { transform: translateX(0); }
+    .drawer-header { display: flex; align-items: center; padding: 10px 10px 8px; border-bottom: 1px solid #e2e8f0; gap: 8px; flex-shrink: 0; }
+    .drawer-title { flex: 1; font-size: 13px; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-close { background: none; border: none; cursor: pointer; color: #64748b; font-size: 18px; line-height: 1; padding: 2px 4px; }
+    .btn-close:hover { color: #1e293b; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 10px; }
+    .drawer-body::-webkit-scrollbar { width: 4px; }
+    .drawer-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .drawer-footer { padding: 8px 10px; border-top: 1px solid #e2e8f0; display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-save { flex: 1; padding: 8px; background: #3b82f6; color: #fff; border: none; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-save:hover { background: #2563eb; }
+    .btn-save:disabled { background: #93c5fd; cursor: not-allowed; }
+    .btn-delete { padding: 8px 14px; background: #fee2e2; color: #ef4444; border: none; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-delete:hover { background: #fecaca; }
+
+    /* FORM FIELDS */
+    .field-group { margin-bottom: 10px; }
+    .field-label { display: block; font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+    .field-input, .field-select, .field-textarea {
+      width: 100%; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 4px;
+      font-size: 12px; color: #1e293b; background: #fff; transition: border-color 0.15s;
+    }
+    .field-input:focus, .field-select:focus, .field-textarea:focus {
+      outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
+    }
+    .field-textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+    .field-row { display: flex; gap: 8px; }
+    .field-row .field-group { flex: 1; }
+    .section-divider { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; padding: 8px 0 4px; border-bottom: 1px solid #f1f5f9; margin-bottom: 8px; }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%) translateY(60px);
+      background: #1e293b; color: #fff; padding: 8px 16px; border-radius: 8px;
+      font-size: 12px; font-weight: 500; z-index: 200; transition: transform 0.25s ease;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.error { background: #ef4444; }
+
+    /* LOADING */
+    .loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 12px; color: #64748b; }
+    .spinner { width: 28px; height: 28px; border: 3px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* EMPTY STATE */
+    .empty-state { text-align: center; padding: 24px 16px; color: #94a3b8; }
+    .empty-state .icon { font-size: 28px; margin-bottom: 6px; }
+    .empty-state p { font-size: 12px; }
+
+    /* TAB CONTENT */
+    .tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .tab-content.active { display: flex; }
+  </style>
+</head>
+<body>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-creative" onclick="switchTab('creative')">Creative Library</button>
+    <button class="tab-btn" id="tab-concept" onclick="switchTab('concept')">Concept Hub</button>
+  </div>
+
+  <!-- LOADING SCREEN -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="spinner"></div>
+    <span>Loading...</span>
+  </div>
+
+  <!-- TAB: CREATIVE LIBRARY -->
+  <div id="content-creative" class="tab-content">
+    <div class="filter-bar">
+      <div class="filter-row">
+        <select id="filter-c-brand" onchange="applyFilters('creative')">
+          <option value="">Brand</option>
+        </select>
+        <select id="filter-c-product" onchange="applyFilters('creative')">
+          <option value="">Product</option>
+        </select>
+        <select id="filter-c-status" onchange="applyFilters('creative')">
+          <option value="">Status</option>
+          <option value="Testing">Testing</option>
+          <option value="Winning">Winning</option>
+          <option value="Scaling">Scaling</option>
+          <option value="Fatigued">Fatigued</option>
+          <option value="Killed">Killed</option>
+        </select>
+        <select id="filter-c-brief" onchange="applyFilters('creative')">
+          <option value="">Brief</option>
+          <option value="Not Briefed">Not Briefed</option>
+          <option value="Briefed">Briefed</option>
+          <option value="In Production">In Production</option>
+          <option value="Ready to Launch">Ready to Launch</option>
+          <option value="Live">Live</option>
+        </select>
+        <select id="filter-c-format" onchange="applyFilters('creative')">
+          <option value="">Format</option>
+          <option value="Video 9:16">Video 9:16</option>
+          <option value="Static 1:1">Static 1:1</option>
+          <option value="Static 4:5">Static 4:5</option>
+          <option value="Carousel">Carousel</option>
+          <option value="Story">Story</option>
+        </select>
+      </div>
+    </div>
+    <div class="action-bar">
+      <span id="creative-count" class="count-label">0 creatives</span>
+      <button class="btn-new" onclick="openDrawer('creative', null)">+ New Creative</button>
+    </div>
+    <div id="creative-list" class="list-container"></div>
+  </div>
+
+  <!-- TAB: CONCEPT HUB -->
+  <div id="content-concept" class="tab-content">
+    <div class="filter-bar">
+      <div class="filter-row">
+        <select id="filter-p-brand" onchange="applyFilters('concept')">
+          <option value="">Brand</option>
+        </select>
+        <select id="filter-p-product" onchange="applyFilters('concept')">
+          <option value="">Product</option>
+        </select>
+        <select id="filter-p-status" onchange="applyFilters('concept')">
+          <option value="">Status</option>
+          <option value="Active">Active</option>
+          <option value="Paused">Paused</option>
+          <option value="Killed">Killed</option>
+        </select>
+      </div>
+    </div>
+    <div class="action-bar">
+      <span id="concept-count" class="count-label">0 concepts</span>
+      <button class="btn-new" onclick="openDrawer('concept', null)">+ New Concept</button>
+    </div>
+    <div id="concept-list" class="list-container"></div>
+  </div>
+
+  <!-- DRAWER OVERLAY -->
+  <div id="drawer-overlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+
+  <!-- DRAWER -->
+  <div id="drawer" class="drawer">
+    <div class="drawer-header">
+      <span id="drawer-title" class="drawer-title">Detail</span>
+      <button class="btn-close" onclick="closeDrawer()">&#x2715;</button>
+    </div>
+    <div id="drawer-body" class="drawer-body"></div>
+    <div class="drawer-footer">
+      <button id="btn-save" class="btn-save" onclick="saveItem()">Save</button>
+      <button id="btn-delete" class="btn-delete" onclick="deleteItem()" style="display:none">Delete</button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ============================================================
+    // STATE — dữ liệu toàn cục
+    // ============================================================
+    var state = {
+      creatives: [],
+      concepts:  [],
+      config:    { brands: [], dropdowns: {} },
+      filters: {
+        creative: { brand:'', productLine:'', status:'', briefStatus:'', format:'' },
+        concept:  { brand:'', productLine:'', status:'' }
+      },
+      activeTab: 'creative',
+      drawer: { open: false, item: null, sheet: null, isNew: false }
+    };
+
+    // ============================================================
+    // GAS BRIDGE — Promise wrapper cho google.script.run
+    // ============================================================
+    function gasRun(fnName) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      return new Promise(function(resolve, reject) {
+        var runner = google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(function(err) { reject(err); });
+        runner[fnName].apply(runner, args);
+      });
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    function initApp() {
+      Promise.all([
+        gasRun('getSheetData', 'Creative Library'),
+        gasRun('getSheetData', 'Concept Hub'),
+        gasRun('getConfig')
+      ]).then(function(results) {
+        state.creatives = results[0] || [];
+        state.concepts  = results[1] || [];
+        state.config    = results[2] || { brands: [], dropdowns: {} };
+
+        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById('content-creative').classList.add('active');
+
+        populateBrandFilters();
+        applyFilters('creative');
+        applyFilters('concept');
+      }).catch(function(err) {
+        document.getElementById('loading-screen').innerHTML =
+          '<div style="color:#ef4444;text-align:center;padding:20px">Lỗi tải data: ' +
+          (err.message || String(err)) + '</div>';
+      });
+    }
+
+    // ============================================================
+    // TAB SWITCHING
+    // ============================================================
+    function switchTab(tab) {
+      state.activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
+      document.getElementById('tab-' + tab).classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
+      document.getElementById('content-' + tab).classList.add('active');
+    }
+
+    // ============================================================
+    // POPULATE FILTER DROPDOWNS
+    // ============================================================
+    function populateBrandFilters() {
+      var brands = state.config.brands || [];
+      var productLines = {};
+      state.creatives.forEach(function(c) { if (c['Product Line']) productLines[c['Product Line']] = true; });
+      state.concepts.forEach(function(c)  { if (c['Product Line']) productLines[c['Product Line']] = true; });
+      var plArr = Object.keys(productLines).sort();
+
+      ['filter-c-brand', 'filter-p-brand'].forEach(function(id) {
+        var sel = document.getElementById(id);
+        var cur = sel.value;
+        sel.innerHTML = '<option value="">Brand</option>';
+        brands.forEach(function(b) {
+          var opt = document.createElement('option');
+          opt.value = b; opt.text = b;
+          sel.appendChild(opt);
+        });
+        sel.value = cur;
+      });
+
+      ['filter-c-product', 'filter-p-product'].forEach(function(id) {
+        var sel = document.getElementById(id);
+        var cur = sel.value;
+        sel.innerHTML = '<option value="">Product</option>';
+        plArr.forEach(function(pl) {
+          var opt = document.createElement('option');
+          opt.value = pl; opt.text = pl;
+          sel.appendChild(opt);
+        });
+        sel.value = cur;
+      });
+    }
+
+    // ============================================================
+    // FILTER & RENDER
+    // ============================================================
+
+    /**
+     * Escape HTML để tránh XSS khi render string vào innerHTML
+     */
+    function escHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    /**
+     * Trả về HTML string cho badge status
+     */
+    function renderBadge(status) {
+      if (!status) return '';
+      var cls = 'badge-' + String(status).replace(/ /g, '-');
+      return '<span class="badge ' + cls + '">' + escHtml(status) + '</span>';
+    }
+
+    /**
+     * Lọc và render lại danh sách theo tab.
+     * Chạy hoàn toàn client-side.
+     */
+    function applyFilters(tab) {
+      if (tab === 'creative') {
+        var f = {
+          brand:       document.getElementById('filter-c-brand').value,
+          productLine: document.getElementById('filter-c-product').value,
+          status:      document.getElementById('filter-c-status').value,
+          briefStatus: document.getElementById('filter-c-brief').value,
+          format:      document.getElementById('filter-c-format').value
+        };
+        state.filters.creative = f;
+        var filtered = state.creatives.filter(function(c) {
+          return (!f.brand       || c['Brand'] === f.brand)
+              && (!f.productLine || c['Product Line'] === f.productLine)
+              && (!f.status      || c['Status'] === f.status)
+              && (!f.briefStatus || c['Brief Status'] === f.briefStatus)
+              && (!f.format      || c['Format'] === f.format);
+        });
+        renderCreativeList(filtered);
+      } else {
+        var fp = {
+          brand:       document.getElementById('filter-p-brand').value,
+          productLine: document.getElementById('filter-p-product').value,
+          status:      document.getElementById('filter-p-status').value
+        };
+        state.filters.concept = fp;
+        var filteredC = state.concepts.filter(function(c) {
+          return (!fp.brand       || c['Brand'] === fp.brand)
+              && (!fp.productLine || c['Product Line'] === fp.productLine)
+              && (!fp.status      || c['Status'] === fp.status);
+        });
+        renderConceptList(filteredC);
+      }
+    }
+
+    /**
+     * Render danh sách creative cards vào #creative-list
+     */
+    function renderCreativeList(list) {
+      var container = document.getElementById('creative-list');
+      var countEl   = document.getElementById('creative-count');
+      countEl.textContent = list.length + ' creative' + (list.length !== 1 ? 's' : '');
+
+      if (list.length === 0) {
+        container.innerHTML =
+          '<div class="empty-state"><div class="icon">🎨</div>' +
+          '<p>Không có creative nào<br>phù hợp với filter.</p></div>';
+        return;
+      }
+
+      container.innerHTML = list.map(function(c) {
+        var roas = c['ROAS'] ? '<span class="card-roas">ROAS ' + escHtml(String(c['ROAS'])) + '</span>' : '';
+        return '<div class="creative-card" onclick="openDrawer(\'creative\',' + c._rowIndex + ')">' +
+          '<div class="card-row">' +
+            '<span class="card-title">' + escHtml(c['Asset Name'] || '(no name)') + '</span>' +
+            roas +
+          '</div>' +
+          '<div class="card-meta">' +
+            renderBadge(c['Status']) +
+            renderBadge(c['Brief Status']) +
+            (c['Format'] ? ' <span class="card-format">' + escHtml(c['Format']) + '</span>' : '') +
+            (c['Brand'] ? ' <span class="card-format" style="color:#94a3b8">· ' + escHtml(c['Brand']) + '</span>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    /**
+     * Render danh sách concept cards vào #concept-list
+     */
+    function renderConceptList(list) {
+      var container = document.getElementById('concept-list');
+      var countEl   = document.getElementById('concept-count');
+      countEl.textContent = list.length + ' concept' + (list.length !== 1 ? 's' : '');
+
+      if (list.length === 0) {
+        container.innerHTML =
+          '<div class="empty-state"><div class="icon">💡</div>' +
+          '<p>Không có concept nào<br>phù hợp với filter.</p></div>';
+        return;
+      }
+
+      container.innerHTML = list.map(function(c) {
+        var totalAssets  = c['Total Assets']  || 0;
+        var winningCount = c['Winning Count'] || 0;
+        return '<div class="concept-card" onclick="openDrawer(\'concept\',' + c._rowIndex + ')">' +
+          '<div class="card-row">' +
+            '<span class="concept-title">' + escHtml(c['Concept Name'] || '(no name)') + '</span>' +
+            renderBadge(c['Status']) +
+          '</div>' +
+          '<div class="card-meta" style="margin-bottom:4px">' +
+            (c['Brand'] ? '<span class="card-format">' + escHtml(c['Brand']) + '</span>' : '') +
+            (c['Format'] ? '<span class="card-format"> · ' + escHtml(c['Format']) + '</span>' : '') +
+          '</div>' +
+          '<div class="concept-stats">' +
+            '<span class="stat-chip">📦 ' + escHtml(String(totalAssets)) + ' assets</span>' +
+            '<span class="stat-chip">🏆 ' + escHtml(String(winningCount)) + ' winning</span>' +
+            (c['Concept ID'] ? '<span class="stat-chip">' + escHtml(c['Concept ID']) + '</span>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    // ============================================================
+    // DRAWER — open / close
+    // ============================================================
+
+    /**
+     * Mở drawer để xem/edit item hoặc tạo mới.
+     * @param {string} sheet - 'creative' hoặc 'concept'
+     * @param {number|null} rowIndex - Row index thực tế (null = new item)
+     */
+    function openDrawer(sheet, rowIndex) {
+      var isNew = (rowIndex === null || rowIndex === undefined);
+      var item  = null;
+
+      if (!isNew) {
+        var arr = sheet === 'creative' ? state.creatives : state.concepts;
+        for (var i = 0; i < arr.length; i++) {
+          if (arr[i]._rowIndex === rowIndex) { item = arr[i]; break; }
+        }
+      }
+
+      state.drawer = { open: true, item: item, sheet: sheet, isNew: isNew };
+
+      // Cập nhật title
+      var title = isNew
+        ? (sheet === 'creative' ? 'New Creative' : 'New Concept')
+        : (sheet === 'creative'
+            ? ((item && item['Asset Name']) || 'Edit Creative')
+            : ((item && item['Concept Name']) || 'Edit Concept'));
+      document.getElementById('drawer-title').textContent = title;
+
+      // Render form (buildCreativeForm / buildConceptForm sẽ được thêm ở task sau)
+      var body = document.getElementById('drawer-body');
+      if (typeof buildCreativeForm === 'function' && typeof buildConceptForm === 'function') {
+        body.innerHTML = sheet === 'creative' ? buildCreativeForm(item) : buildConceptForm(item);
+      } else {
+        body.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px">Form đang được tải...</p>';
+      }
+
+      // Ẩn/hiện nút Delete
+      document.getElementById('btn-delete').style.display = isNew ? 'none' : 'inline-block';
+
+      // Mở drawer với animation
+      document.getElementById('drawer-overlay').classList.add('open');
+      document.getElementById('drawer').classList.add('open');
+    }
+
+    /**
+     * Đóng drawer và reset state
+     */
+    function closeDrawer() {
+      state.drawer = { open: false, item: null, sheet: null, isNew: false };
+      document.getElementById('drawer-overlay').classList.remove('open');
+      document.getElementById('drawer').classList.remove('open');
+    }
+
+    // ============================================================
+    // FORM HELPERS
+    // ============================================================
+
+    function fieldText(id, label, value, placeholder) {
+      return '<div class="field-group">' +
+        '<label class="field-label" for="' + id + '">' + label + '</label>' +
+        '<input class="field-input" type="text" id="' + id + '" value="' +
+        escHtml(value || '') + '" placeholder="' + escHtml(placeholder || '') + '">' +
+        '</div>';
+    }
+
+    function fieldSelect(id, label, options, value) {
+      var opts = (options || []).map(function(o) {
+        return '<option value="' + escHtml(o) + '"' +
+          (o === value ? ' selected' : '') + '>' + escHtml(o) + '</option>';
+      }).join('');
+      return '<div class="field-group">' +
+        '<label class="field-label" for="' + id + '">' + label + '</label>' +
+        '<select class="field-select" id="' + id + '">' +
+        '<option value="">— chọn —</option>' + opts + '</select></div>';
+    }
+
+    function fieldTextarea(id, label, value, placeholder) {
+      return '<div class="field-group">' +
+        '<label class="field-label" for="' + id + '">' + label + '</label>' +
+        '<textarea class="field-textarea" id="' + id + '" placeholder="' +
+        escHtml(placeholder || '') + '">' + escHtml(value || '') + '</textarea></div>';
+    }
+
+    function sectionDivider(label) {
+      return '<div class="section-divider">' + label + '</div>';
+    }
+
+    // Lấy danh sách concept options cho dropdown "Concept Hub ID" trong Creative form
+    function getConceptOptions() {
+      return state.concepts.map(function(c) {
+        return {
+          id:    c['Concept ID'] || '',
+          label: (c['Concept ID'] || '') + (c['Concept Name'] ? ' — ' + c['Concept Name'] : '')
+        };
+      }).filter(function(o) { return o.id; });
+    }
+
+    // ============================================================
+    // FORM BUILDERS
+    // ============================================================
+
+    function buildCreativeForm(item) {
+      var d      = state.config.dropdowns || {};
+      var v      = item || {};
+      var brands = state.config.brands || [];
+
+      // Dropdown Concept Hub ID từ danh sách concepts hiện có
+      var conceptOpts = getConceptOptions();
+      var currentConceptId = v['Concept Hub ID'] || '';
+      var conceptOptHtml = conceptOpts.map(function(o) {
+        return '<option value="' + escHtml(o.id) + '"' +
+          (o.id === currentConceptId ? ' selected' : '') +
+          '>' + escHtml(o.label) + '</option>';
+      }).join('');
+      var conceptField =
+        '<div class="field-group">' +
+        '<label class="field-label" for="f-concept-id">Concept Hub ID</label>' +
+        '<select class="field-select" id="f-concept-id">' +
+        '<option value="">— Chọn concept —</option>' + conceptOptHtml +
+        '</select></div>';
+
+      return sectionDivider('Thông tin cơ bản') +
+        fieldText('f-asset-name', 'Asset Name *', v['Asset Name'], 'Tên creative...') +
+        '<div class="field-row">' +
+          fieldSelect('f-brand', 'Brand', brands, v['Brand']) +
+          fieldText('f-product-line', 'Product Line', v['Product Line'], '') +
+        '</div>' +
+        fieldText('f-concept', 'Concept', v['Concept'], 'Tên concept...') +
+        fieldText('f-angle', 'Angle', v['Angle'], 'Góc khai thác...') +
+        fieldText('f-hook', 'Hook', v['Hook'], 'Hook chính...') +
+        '<div class="field-row">' +
+          fieldSelect('f-format', 'Format', d.format || [], v['Format']) +
+          fieldSelect('f-objective', 'Campaign Obj.', d.campaignObjective || [], v['Campaign Objective']) +
+        '</div>' +
+        sectionDivider('Trạng thái') +
+        '<div class="field-row">' +
+          fieldSelect('f-status', 'Status', d.statusCreative || [], v['Status']) +
+          fieldSelect('f-brief-status', 'Brief Status', d.briefStatus || [], v['Brief Status']) +
+        '</div>' +
+        fieldText('f-assignee', 'Assignee', v['Assignee'], 'Người phụ trách...') +
+        fieldText('f-launch-date', 'Launch Date', v['Launch Date'] ? String(v['Launch Date']).substring(0,10) : '', 'YYYY-MM-DD') +
+        sectionDivider('Performance') +
+        '<div class="field-row">' +
+          fieldText('f-spend', 'Spend', v['Spend'] ? String(v['Spend']) : '', '0') +
+          fieldText('f-roas', 'ROAS', v['ROAS'] ? String(v['ROAS']) : '', '0.00') +
+        '</div>' +
+        '<div class="field-row">' +
+          fieldText('f-ctr', 'CTR', v['CTR'] ? String(v['CTR']) : '', '0.00%') +
+          fieldText('f-cpm', 'CPM', v['CPM'] ? String(v['CPM']) : '', '0') +
+          fieldText('f-cpc', 'CPC', v['CPC'] ? String(v['CPC']) : '', '0') +
+        '</div>' +
+        sectionDivider('Nội dung') +
+        fieldText('f-preview-url', 'Preview URL', v['Preview URL'], 'https://...') +
+        fieldTextarea('f-brief-notes', 'Brief Notes', v['Brief Notes'], 'Mô tả brief...') +
+        fieldTextarea('f-perf-notes', 'Performance Notes', v['Performance Notes'], 'Nhận xét hiệu quả...') +
+        conceptField;
+    }
+
+    function buildConceptForm(item) {
+      var d      = state.config.dropdowns || {};
+      var v      = item || {};
+      var brands = state.config.brands || [];
+
+      return sectionDivider('Thông tin cơ bản') +
+        fieldText('p-concept-id', 'Concept ID', v['Concept ID'], 'Tự động tạo nếu để trống') +
+        fieldText('p-concept-name', 'Concept Name *', v['Concept Name'], 'Tên concept...') +
+        '<div class="field-row">' +
+          fieldSelect('p-brand', 'Brand', brands, v['Brand']) +
+          fieldText('p-product-line', 'Product Line', v['Product Line'], '') +
+        '</div>' +
+        '<div class="field-row">' +
+          fieldSelect('p-format', 'Format', d.format || [], v['Format']) +
+          fieldSelect('p-objective', 'Campaign Obj.', d.campaignObjective || [], v['Campaign Objective']) +
+        '</div>' +
+        sectionDivider('Nội dung') +
+        fieldTextarea('p-core-insight', 'Core Insight', v['Core Insight'], 'Insight chính của concept...') +
+        fieldTextarea('p-angles', 'Angles', v['Angles'], 'Các angle khai thác, mỗi angle 1 dòng...') +
+        sectionDivider('Trạng thái') +
+        fieldSelect('p-status', 'Status', d.statusConcept || [], v['Status']);
+    }
+
+    // ============================================================
+    // FORM READERS
+    // ============================================================
+
+    function getVal(id) {
+      var el = document.getElementById(id);
+      return el ? el.value.trim() : '';
+    }
+
+    function getNumVal(id) {
+      var v = getVal(id);
+      if (v === '') return '';
+      var n = parseFloat(v);
+      return isNaN(n) ? v : n;
+    }
+
+    function readCreativeForm() {
+      return {
+        'Asset Name':         getVal('f-asset-name'),
+        'Brand':              getVal('f-brand'),
+        'Product Line':       getVal('f-product-line'),
+        'Concept':            getVal('f-concept'),
+        'Angle':              getVal('f-angle'),
+        'Hook':               getVal('f-hook'),
+        'Format':             getVal('f-format'),
+        'Campaign Objective': getVal('f-objective'),
+        'Status':             getVal('f-status'),
+        'Brief Status':       getVal('f-brief-status'),
+        'Assignee':           getVal('f-assignee'),
+        'Launch Date':        getVal('f-launch-date'),
+        'Spend':              getNumVal('f-spend'),
+        'ROAS':               getNumVal('f-roas'),
+        'CTR':                getNumVal('f-ctr'),
+        'CPM':                getNumVal('f-cpm'),
+        'CPC':                getNumVal('f-cpc'),
+        'Preview URL':        getVal('f-preview-url'),
+        'Brief Notes':        getVal('f-brief-notes'),
+        'Performance Notes':  getVal('f-perf-notes'),
+        'Concept Hub ID':     getVal('f-concept-id')
+      };
+    }
+
+    function readConceptForm() {
+      return {
+        'Concept ID':         getVal('p-concept-id'),
+        'Concept Name':       getVal('p-concept-name'),
+        'Brand':              getVal('p-brand'),
+        'Product Line':       getVal('p-product-line'),
+        'Format':             getVal('p-format'),
+        'Campaign Objective': getVal('p-objective'),
+        'Core Insight':       getVal('p-core-insight'),
+        'Angles':             getVal('p-angles'),
+        'Status':             getVal('p-status'),
+        'Total Assets':       (state.drawer.item && state.drawer.item['Total Assets'] !== undefined) ? state.drawer.item['Total Assets'] : '',
+        'Winning Count':      (state.drawer.item && state.drawer.item['Winning Count'] !== undefined) ? state.drawer.item['Winning Count'] : ''
+      };
+    }
+
+    // ============================================================
+    // SAVE
+    // ============================================================
+
+    function saveItem() {
+      var d = state.drawer;
+      if (!d.sheet) return;
+
+      var btn = document.getElementById('btn-save');
+      btn.disabled = true;
+      btn.textContent = 'Đang lưu...';
+
+      var rowData  = d.sheet === 'creative' ? readCreativeForm() : readConceptForm();
+      var rowIndex = d.isNew ? -1 : (d.item ? d.item._rowIndex : -1);
+
+      // Validation
+      var nameKey = d.sheet === 'creative' ? 'Asset Name' : 'Concept Name';
+      if (!rowData[nameKey] || !rowData[nameKey].trim()) {
+        showToast(nameKey + ' không được để trống', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Lưu';
+        return;
+      }
+
+      var sheetName = d.sheet === 'creative' ? 'Creative Library' : 'Concept Hub';
+
+      gasRun('saveRow', sheetName, rowData, rowIndex)
+        .then(function(savedRowIndex) {
+          rowData._rowIndex = savedRowIndex;
+
+          if (d.isNew) {
+            if (d.sheet === 'creative') state.creatives.push(rowData);
+            else                        state.concepts.push(rowData);
+          } else {
+            var arr = d.sheet === 'creative' ? state.creatives : state.concepts;
+            for (var i = 0; i < arr.length; i++) {
+              if (arr[i]._rowIndex === rowIndex) { arr[i] = rowData; break; }
+            }
+          }
+
+          populateBrandFilters();
+          applyFilters('creative');
+          applyFilters('concept');
+          showToast('Đã lưu thành công ✓');
+          closeDrawer();
+        })
+        .catch(function(err) {
+          showToast('Lỗi lưu: ' + (err.message || String(err)), 'error');
+        })
+        .finally(function() {
+          btn.disabled = false;
+          btn.textContent = 'Lưu';
+        });
+    }
+
+    // ============================================================
+    // DELETE
+    // ============================================================
+
+    function deleteItem() {
+      var d = state.drawer;
+      if (!d.item || d.isNew) return;
+
+      var label = d.sheet === 'creative'
+        ? '"' + (d.item['Asset Name'] || 'creative này') + '"'
+        : '"' + (d.item['Concept Name'] || 'concept này') + '"';
+
+      if (!confirm('Xóa ' + label + '?')) return;
+
+      var sheetName = d.sheet === 'creative' ? 'Creative Library' : 'Concept Hub';
+      var rowIndex  = d.item._rowIndex;
+      var btnDel    = document.getElementById('btn-delete');
+      btnDel.disabled = true;
+
+      gasRun('deleteRow', sheetName, rowIndex)
+        .then(function() {
+          // Xóa khỏi state local
+          if (d.sheet === 'creative') {
+            state.creatives = state.creatives.filter(function(x) { return x._rowIndex !== rowIndex; });
+            // Adjust _rowIndex của các rows bên dưới row vừa xóa
+            state.creatives.forEach(function(x) { if (x._rowIndex > rowIndex) x._rowIndex--; });
+          } else {
+            state.concepts = state.concepts.filter(function(x) { return x._rowIndex !== rowIndex; });
+            state.concepts.forEach(function(x) { if (x._rowIndex > rowIndex) x._rowIndex--; });
+          }
+
+          applyFilters('creative');
+          applyFilters('concept');
+          showToast('Đã xóa');
+          closeDrawer();
+        })
+        .catch(function(err) {
+          showToast('Lỗi xóa: ' + (err.message || String(err)), 'error');
+          btnDel.disabled = false;
+        });
+    }
+
+    // ============================================================
+    // TOAST
+    // ============================================================
+    var _toastTimer = null;
+    function showToast(msg, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast' + (type === 'error' ? ' error' : '');
+      void toast.offsetWidth;
+      toast.classList.add('show');
+      if (_toastTimer) clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 2500);
+    }
+
+    // ============================================================
+    // Promise.prototype.finally polyfill (GAS browser không có)
+    // ============================================================
+    if (typeof Promise !== 'undefined' && !Promise.prototype.finally) {
+      Promise.prototype.finally = function(fn) {
+        return this.then(
+          function(val) { fn(); return val; },
+          function(err) { fn(); throw err; }
+        );
+      };
+    }
+
+    // ============================================================
+    // KHỞI ĐỘNG
+    // ============================================================
+    window.addEventListener('load', initApp);
+  </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# Clasp OAuth token — chứa credentials, KHÔNG commit
+.clasprc.json
+
+# macOS
+.DS_Store
+
+# Node (nếu sau này thêm dev deps)
+node_modules/
