@@ -1,5 +1,5 @@
 // web/src/hooks/useCreatives.js
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { getCreatives, saveCreative as apiSave, deleteCreative as apiDelete } from '../api';
 
 export function useCreatives() {
@@ -7,29 +7,39 @@ export function useCreatives() {
   const [cache, setCache] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const cacheRef = useRef(cache);
+
+  // Keep ref in sync with state
+  const updateCache = useCallback((updater) => {
+    setCache(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      cacheRef.current = next;
+      return next;
+    });
+  }, []);
 
   const load = useCallback(async (brand) => {
     if (!brand) return;
-    if (cache[brand]) return; // đã có cache
+    if (cacheRef.current[brand]) return; // check via ref — no dependency needed
     setLoading(true);
     setError(null);
     try {
       const data = await getCreatives(brand);
-      setCache(prev => ({ ...prev, [brand]: data }));
+      updateCache(prev => ({ ...prev, [brand]: data }));
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [cache]);
+  }, [updateCache]); // stable dependency — no infinite loop
 
   const save = useCallback(async (brand, row) => {
     const isNew = !row.id;
-    // Optimistic: thêm/update ngay với temp id nếu mới
-    const tempId = isNew ? `__temp__${Date.now()}` : row.id;
+    // Optimistic: thêm/update ngay với temp id nếu mới (collision-safe)
+    const tempId = isNew ? `__temp__${Date.now()}_${Math.random().toString(36).slice(2)}` : row.id;
     const optimisticRow = { ...row, id: tempId };
 
-    setCache(prev => {
+    updateCache(prev => {
       const existing = prev[brand] || [];
       if (isNew) return { ...prev, [brand]: [...existing, optimisticRow] };
       return { ...prev, [brand]: existing.map(c => c.id === row.id ? optimisticRow : c) };
@@ -37,40 +47,41 @@ export function useCreatives() {
 
     try {
       const result = await apiSave(brand, row);
-      // Replace temp với real id
-      setCache(prev => {
+      // Replace temp với real id + merge server response fields
+      updateCache(prev => {
         const existing = prev[brand] || [];
         if (isNew) {
-          return { ...prev, [brand]: existing.map(c => c.id === tempId ? { ...optimisticRow, id: result.id } : c) };
+          return { ...prev, [brand]: existing.map(c => c.id === tempId ? { ...optimisticRow, ...result } : c) };
         }
         return prev;
       });
       return result;
     } catch (err) {
       // Revert
-      setCache(prev => {
+      updateCache(prev => {
         const existing = prev[brand] || [];
         if (isNew) return { ...prev, [brand]: existing.filter(c => c.id !== tempId) };
         return { ...prev, [brand]: existing.map(c => c.id === row.id ? row : c) };
       });
       throw err;
     }
-  }, []);
+  }, [updateCache]);
 
   const remove = useCallback(async (brand, id) => {
-    const snapshot = cache[brand] || [];
+    const snapshot = cacheRef.current[brand] || []; // use ref instead of cache state
     // Optimistic remove
-    setCache(prev => ({ ...prev, [brand]: (prev[brand] || []).filter(c => c.id !== id) }));
+    updateCache(prev => ({ ...prev, [brand]: (prev[brand] || []).filter(c => c.id !== id) }));
     try {
       await apiDelete(brand, id);
     } catch (err) {
       // Revert
-      setCache(prev => ({ ...prev, [brand]: snapshot }));
+      updateCache(prev => ({ ...prev, [brand]: snapshot }));
       throw err;
     }
-  }, [cache]);
+  }, [updateCache]); // stable
 
   const getFiltered = useCallback((brand, product, concept) => {
+    if (!brand) return [];
     let list = cache[brand] || [];
     if (product) list = list.filter(c => c.product === product);
     if (concept) list = list.filter(c => c.concept === concept);
@@ -78,6 +89,7 @@ export function useCreatives() {
   }, [cache]);
 
   const getTree = useCallback((brand) => {
+    if (!brand) return {};
     const list = cache[brand] || [];
     const tree = {};
     list.forEach(c => {
