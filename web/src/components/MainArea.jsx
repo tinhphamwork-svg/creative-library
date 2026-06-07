@@ -7,7 +7,6 @@ export default function MainArea({ creatives, loading, error, viewMode, selected
   onViewModeChange, onSelectCreative, onSave }) {
 
   const [filters, setFilters] = useState({ format: '', status: '', brief_status: '', assignee: '' });
-  const [sortBy, setSortBy] = useState('hook'); // hook | roas | status
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCreative, setEditingCreative] = useState(null);
 
@@ -22,11 +21,6 @@ export default function MainArea({ creatives, loading, error, viewMode, selected
 
   function handleNewCreative() {
     setEditingCreative(null);
-    setModalOpen(true);
-  }
-
-  function handleEditCreative(creative) {
-    setEditingCreative(creative);
     setModalOpen(true);
   }
 
@@ -100,7 +94,7 @@ export default function MainArea({ creatives, loading, error, viewMode, selected
               />
             ))}
             {filtered.length === 0 && (
-              <div className="col-span-4 text-center text-slate-400 text-sm py-16">
+              <div className="col-span-full text-center text-slate-400 text-sm py-16">
                 Chưa có creative nào.{' '}
                 <button onClick={handleNewCreative} className="text-blue-500 hover:underline">Thêm mới?</button>
               </div>
