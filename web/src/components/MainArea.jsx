@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import CreativeCard from './CreativeCard';
 import CreativeModal from './CreativeModal';
+import MatrixView from './MatrixView';
 
 export default function MainArea({ creatives, loading, error, viewMode, selectedBrand,
   selectedProduct, selectedConcept, selectedCreative, dropdowns,
@@ -55,6 +56,11 @@ export default function MainArea({ creatives, loading, error, viewMode, selected
                 ${viewMode === 'table' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
               ☰ Table
             </button>
+            <button onClick={() => onViewModeChange('matrix')}
+              className={`px-3 py-1 text-xs rounded transition-colors font-medium
+                ${viewMode === 'matrix' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+              ⊟ Matrix
+            </button>
           </div>
 
           {/* Filters */}
@@ -100,6 +106,10 @@ export default function MainArea({ creatives, loading, error, viewMode, selected
               </div>
             )}
           </div>
+        )}
+
+        {!loading && !error && viewMode === 'matrix' && (
+          <MatrixView creatives={filtered} onSelectCreative={onSelectCreative} />
         )}
 
         {!loading && !error && viewMode === 'table' && (
