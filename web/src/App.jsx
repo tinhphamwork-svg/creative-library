@@ -1,12 +1,15 @@
 // web/src/App.jsx
 import { useState, useEffect } from 'react';
-import { getBrands, getDropdowns, addBrand } from './api';
+import { getBrands, getDropdowns, addBrand, setAuthToken, getAuthToken } from './api';
 import { useCreatives } from './hooks/useCreatives';
 import Sidebar from './components/Sidebar';
 import MainArea from './components/MainArea';
 import DetailPanel from './components/DetailPanel';
+import LoginPage from './components/LoginPage';
 
 export default function App() {
+  const [authed, setAuthed] = useState(!!getAuthToken());
+  const [authError, setAuthError] = useState(null);
   const [brands, setBrands] = useState([]);
   const [dropdowns, setDropdowns] = useState({ format: [], status: [], briefStatus: [] });
   const [selectedBrand, setSelectedBrand] = useState(null);
@@ -14,16 +17,49 @@ export default function App() {
   const [selectedConcept, setSelectedConcept] = useState(null);
   const [selectedCreative, setSelectedCreative] = useState(null);
   const [viewMode, setViewMode] = useState('gallery');
-  const [toast, setToast] = useState(null); // { type: 'success'|'error', msg }
+  const [toast, setToast] = useState(null);
 
   const { cache, loading, error, load, save, remove, getFiltered, getTree } = useCreatives();
 
-  // Load brands + dropdowns on mount
+  async function handleLogin(credential) {
+    setAuthToken(credential);
+    try {
+      const [b, d] = await Promise.all([getBrands(), getDropdowns()]);
+      setBrands(b);
+      setDropdowns(d);
+      setAuthed(true);
+      setAuthError(null);
+    } catch (err) {
+      setAuthToken('');
+      setAuthError(err.message.includes('Unauthorized') || err.message.includes('Access denied')
+        ? 'Tài khoản không có quyền truy cập.'
+        : err.message);
+    }
+  }
+
+  function handleLogout() {
+    setAuthToken('');
+    setAuthed(false);
+    setBrands([]);
+  }
+
+  // Load brands + dropdowns on mount nếu đã có token trong sessionStorage
   useEffect(() => {
-    Promise.all([getBrands(), getDropdowns()])
-      .then(([b, d]) => { setBrands(b); setDropdowns(d); })
-      .catch(err => showToast('error', err.message));
-  }, []);
+    if (authed && brands.length === 0) {
+      Promise.all([getBrands(), getDropdowns()])
+        .then(([b, d]) => { setBrands(b); setDropdowns(d); })
+        .catch(err => {
+          if (err.message.includes('Unauthorized') || err.message.includes('Access denied')) {
+            setAuthToken('');
+            setAuthed(false);
+          } else {
+            showToast('error', err.message);
+          }
+        });
+    }
+  }, [authed]);
+
+  if (!authed) return <LoginPage onLogin={handleLogin} error={authError} />;
 
   // Load creatives khi đổi brand
   useEffect(() => {
@@ -73,6 +109,12 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-sm text-slate-800">
+      <button
+        onClick={handleLogout}
+        className="fixed top-2 right-3 z-50 text-xs text-slate-400 hover:text-slate-600"
+      >
+        Logout
+      </button>
       <Sidebar
         brands={brands}
         selectedBrand={selectedBrand}

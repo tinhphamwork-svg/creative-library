@@ -1,9 +1,23 @@
 // ============================================================
 // CREATIVE LIBRARY — Code.gs
-// API backend via doGet: ?action=<name>&data=<JSON>
+// API backend via doGet: ?action=<name>&data=<JSON>&token=<google_id_token>
 // ============================================================
 
 const SHEET_CONFIG = 'Config';
+
+// Whitelist email được phép truy cập
+const ALLOWED_EMAILS = ['tinhpham.work@gmail.com'];
+
+function verifyAuth(token) {
+  if (!token) throw new Error('Unauthorized');
+  const res = UrlFetchApp.fetch(
+    'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token),
+    { muteHttpExceptions: true }
+  );
+  const info = JSON.parse(res.getContentText());
+  if (!info.email || info.email_verified !== 'true') throw new Error('Unauthorized');
+  if (!ALLOWED_EMAILS.includes(info.email)) throw new Error('Access denied: ' + info.email);
+}
 
 const DROPDOWNS = {
   format:      ['Video 9:16', 'Static 1:1', 'Static 4:5', 'Carousel', 'Story'],
@@ -17,6 +31,7 @@ const DROPDOWNS = {
 
 function doGet(e) {
   const action = (e.parameter && e.parameter.action) || '';
+  const token  = (e.parameter && e.parameter.token)  || '';
   let data = {};
   if (e.parameter && e.parameter.data) {
     try {
@@ -30,6 +45,7 @@ function doGet(e) {
 
   let result;
   try {
+    verifyAuth(token);
     if (action === 'getBrands')      result = getBrands();
     else if (action === 'getCreatives') result = getCreatives(data.brand);
     else if (action === 'getDropdowns') result = DROPDOWNS;
@@ -83,11 +99,25 @@ function getCreatives(brand) {
 // WRITE
 // ============================================================
 
+const CREATIVE_HEADERS = ['id','product','concept','angle','hook','format','status',
+                          'brief_status','assignee','launch_date','spend','roas',
+                          'ctr','cpm','preview_url','notes'];
+
+function ensureBrandSheet(ss, brand) {
+  let sheet = ss.getSheetByName(brand);
+  if (!sheet) {
+    sheet = ss.insertSheet(brand);
+    sheet.getRange(1, 1, 1, CREATIVE_HEADERS.length).setValues([CREATIVE_HEADERS])
+      .setFontWeight('bold').setBackground('#f1f5f9');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
 function saveCreative(brand, row) {
   if (!brand || !row) throw new Error('brand và row bắt buộc');
   const ss    = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(brand);
-  if (!sheet) throw new Error('Sheet không tồn tại: ' + brand);
+  const sheet = ensureBrandSheet(ss, brand);
 
   const headers   = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const rowValues = headers.map(h => (row[h] !== undefined ? row[h] : ''));
@@ -143,15 +173,7 @@ function addBrand(brand) {
   if (existing.includes(trimmed)) throw new Error('Brand đã tồn tại: ' + trimmed);
   configSheet.appendRow([trimmed]);
 
-  if (!ss.getSheetByName(trimmed)) {
-    const newSheet = ss.insertSheet(trimmed);
-    const headers  = ['id','product','concept','angle','hook','format','status',
-                      'brief_status','assignee','launch_date','spend','roas',
-                      'ctr','cpm','preview_url','notes'];
-    newSheet.getRange(1, 1, 1, headers.length).setValues([headers])
-      .setFontWeight('bold').setBackground('#f1f5f9');
-    newSheet.setFrozenRows(1);
-  }
+  ensureBrandSheet(ss, trimmed);
   return { added: trimmed };
 }
 
@@ -165,9 +187,9 @@ function setupConfig() {
     const sheet = ss.insertSheet(SHEET_CONFIG);
     sheet.getRange(1, 1).setValue('Brand').setFontWeight('bold').setBackground('#f1f5f9');
     sheet.setFrozenRows(1);
-    SpreadsheetApp.getUi().alert('✅ Config sheet đã tạo. Thêm brand names vào cột A.');
+    Logger.log('✅ Config sheet đã tạo.');
   } else {
-    SpreadsheetApp.getUi().alert('Config sheet đã tồn tại.');
+    Logger.log('Config sheet đã tồn tại.');
   }
 }
 
