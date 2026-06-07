@@ -20,10 +20,17 @@ function MetricBox({ label, value, highlight }) {
 }
 
 export default function DetailPanel({ creative, dropdowns, existingProducts,
-  existingConcepts, existingAngles, onClose, onSave, onDelete }) {
+  existingConcepts, existingAngles, onClose, onSave, onDelete, onAction }) {
 
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [actionSent, setActionSent] = useState(null);
+
+  async function handleAction(action) {
+    setActionSent(action);
+    await onAction(creative.id, action);
+    setTimeout(() => setActionSent(null), 2000);
+  }
 
   const statusClass = STATUS_COLORS[creative.status] || 'bg-slate-100 text-slate-600';
 
@@ -87,6 +94,34 @@ export default function DetailPanel({ creative, dropdowns, existingProducts,
             <div>
               <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Notes</div>
               <p className="text-xs text-slate-600 leading-relaxed">{creative.notes}</p>
+            </div>
+          )}
+
+          {/* Last synced */}
+          {creative.last_synced && (
+            <div className="text-xs text-slate-400">
+              Synced {new Date(creative.last_synced).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          {onAction && (
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Quick Action</div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {['Scale', 'Pause', 'Kill'].map(act => (
+                  <button key={act} onClick={() => handleAction(act)}
+                    disabled={actionSent === act}
+                    className={`text-xs font-semibold py-1.5 rounded-md transition-colors
+                      ${act === 'Scale' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200' :
+                        act === 'Kill'  ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' :
+                        'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}
+                      ${actionSent === act ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    {actionSent === act ? '✓' : act}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">→ Thêm vào Actions Queue để execute trên Ads Manager</p>
             </div>
           )}
         </div>

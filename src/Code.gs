@@ -46,12 +46,16 @@ function doGet(e) {
   let result;
   try {
     verifyAuth(token);
-    if (action === 'getBrands')      result = getBrands();
-    else if (action === 'getCreatives') result = getCreatives(data.brand);
-    else if (action === 'getDropdowns') result = DROPDOWNS;
-    else if (action === 'saveCreative') result = saveCreative(data.brand, data.row);
+    if (action === 'getBrands')        result = getBrands();
+    else if (action === 'getCreatives')  result = getCreatives(data.brand);
+    else if (action === 'getDropdowns')  result = DROPDOWNS;
+    else if (action === 'saveCreative')  result = saveCreative(data.brand, data.row);
     else if (action === 'deleteCreative') result = deleteCreative(data.brand, data.id);
-    else if (action === 'addBrand')  result = addBrand(data.brand);
+    else if (action === 'addBrand')      result = addBrand(data.brand);
+    else if (action === 'sync')          result = syncMetaData();
+    else if (action === 'addAction')     result = addAction(data.brand, data.creativeId, data.action, data.notes);
+    else if (action === 'markActionDone') result = markActionDone(data.actionId);
+    else if (action === 'getActions')    result = getActions(data.brand);
     else result = { error: 'Unknown action: ' + action };
   } catch (err) {
     result = { error: err.message };
@@ -101,7 +105,10 @@ function getCreatives(brand) {
 
 const CREATIVE_HEADERS = ['id','product','concept','angle','hook','format','status',
                           'brief_status','assignee','launch_date','spend','roas',
-                          'ctr','cpm','preview_url','notes'];
+                          'ctr','cpm','preview_url','notes','meta_ad_id','last_synced'];
+
+const SHEET_ACTIONS = 'Actions';
+const ACTION_HEADERS = ['id','brand','creative_id','action','created_at','notes','done'];
 
 function ensureBrandSheet(ss, brand) {
   let sheet = ss.getSheetByName(brand);
@@ -191,6 +198,13 @@ function setupConfig() {
   } else {
     Logger.log('Config sheet đã tồn tại.');
   }
+  ensureActionsSheet(ss);
+  Logger.log('✅ Actions sheet sẵn sàng.');
+}
+
+function authorizeExternalRequest() {
+  UrlFetchApp.fetch('https://www.google.com', { muteHttpExceptions: true });
+  Logger.log('✅ UrlFetchApp authorized.');
 }
 
 function onOpen() {
@@ -198,6 +212,139 @@ function onOpen() {
     .createMenu('🎨 Creative Library')
     .addItem('Setup Config (chạy lần đầu)', 'setupConfig')
     .addToUi();
+}
+
+// ============================================================
+// META SYNC
+// ============================================================
+
+function syncMetaData() {
+  const ss       = SpreadsheetApp.getActiveSpreadsheet();
+  const rawSheet = ss.getSheetByName('Meta_Raw');
+  if (!rawSheet || rawSheet.getLastRow() < 2) return { updated: 0, skipped: 0, errors: [] };
+
+  const rawValues  = rawSheet.getRange(1, 1, rawSheet.getLastRow(), rawSheet.getLastColumn()).getValues();
+  const rawHeaders = rawValues[0];
+
+  const col = (name) => rawHeaders.indexOf(name);
+  const adNameCol  = col('ad_name');
+  const adIdCol    = col('ad_id');
+  const spendCol   = col('spend');
+  const roasCol    = col('purchase_roas') !== -1 ? col('purchase_roas') : col('roas');
+  const ctrCol     = col('ctr');
+  const cpmCol     = col('cpm');
+
+  if (adNameCol === -1) return { updated: 0, skipped: 0, errors: ['Meta_Raw thiếu cột ad_name'] };
+
+  const creativeIdPattern = /\[CR-[\w-]+\]/;
+  let updated = 0, skipped = 0;
+  const errors = [];
+
+  rawValues.slice(1).forEach((row) => {
+    const adName = String(row[adNameCol] || '');
+    const match  = adName.match(creativeIdPattern);
+    if (!match) { skipped++; return; }
+
+    const creativeId = match[0].slice(1, -1); // strip [ ]
+    try {
+      const found = findCreativeById(ss, creativeId);
+      if (!found) { skipped++; return; }
+
+      const { sheet, rowIndex, headers } = found;
+      const get = (c) => c !== -1 ? row[c] : '';
+      const updates = {
+        spend:       get(spendCol),
+        roas:        get(roasCol),
+        ctr:         get(ctrCol),
+        cpm:         get(cpmCol),
+        meta_ad_id:  adIdCol !== -1 ? row[adIdCol] : '',
+        last_synced: new Date().toISOString(),
+      };
+      Object.entries(updates).forEach(([key, val]) => {
+        const colIdx = headers.indexOf(key);
+        if (colIdx !== -1 && val !== '') {
+          sheet.getRange(rowIndex, colIdx + 1).setValue(val);
+        }
+      });
+      updated++;
+    } catch (e) {
+      errors.push(creativeId + ': ' + e.message);
+    }
+  });
+
+  return { updated, skipped, errors };
+}
+
+function findCreativeById(ss, creativeId) {
+  const brands = getBrands();
+  for (const brand of brands) {
+    const sheet = ss.getSheetByName(brand);
+    if (!sheet || sheet.getLastRow() < 2) continue;
+    const headers  = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const idColIdx = headers.indexOf('id');
+    if (idColIdx === -1) continue;
+    const ids    = sheet.getRange(2, idColIdx + 1, sheet.getLastRow() - 1, 1).getValues().flat();
+    const rowIdx = ids.indexOf(creativeId);
+    if (rowIdx !== -1) return { sheet, rowIndex: rowIdx + 2, headers };
+  }
+  return null;
+}
+
+// ============================================================
+// ACTIONS QUEUE
+// ============================================================
+
+function ensureActionsSheet(ss) {
+  let sheet = ss.getSheetByName(SHEET_ACTIONS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_ACTIONS);
+    sheet.getRange(1, 1, 1, ACTION_HEADERS.length).setValues([ACTION_HEADERS])
+      .setFontWeight('bold').setBackground('#f1f5f9');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function addAction(brand, creativeId, action, notes) {
+  if (!brand || !creativeId || !action) throw new Error('brand, creativeId và action bắt buộc');
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ensureActionsSheet(ss);
+  const id    = 'ACT-' + new Date().getTime();
+  sheet.appendRow([id, brand, creativeId, action, new Date().toISOString(), notes || '', false]);
+  return { id };
+}
+
+function markActionDone(actionId) {
+  if (!actionId) throw new Error('actionId bắt buộc');
+  const ss      = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet   = ss.getSheetByName(SHEET_ACTIONS);
+  if (!sheet || sheet.getLastRow() < 2) throw new Error('Actions tab trống');
+  const headers  = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const idColIdx = headers.indexOf('id');
+  const doneIdx  = headers.indexOf('done');
+  if (idColIdx === -1 || doneIdx === -1) throw new Error('Actions tab thiếu cột id hoặc done');
+  const ids    = sheet.getRange(2, idColIdx + 1, sheet.getLastRow() - 1, 1).getValues().flat();
+  const rowIdx = ids.indexOf(actionId);
+  if (rowIdx === -1) throw new Error('Action không tìm thấy: ' + actionId);
+  sheet.getRange(rowIdx + 2, doneIdx + 1).setValue(true);
+  return { done: actionId };
+}
+
+function getActions(brand) {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_ACTIONS);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const values  = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues();
+  const headers = values[0];
+  return values.slice(1)
+    .filter(row => row.some(c => c !== ''))
+    .map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i]; });
+      return obj;
+    })
+    .filter(row => row.done !== true && row.done !== 'TRUE')
+    .filter(row => !brand || row.brand === brand);
 }
 
 // ============================================================

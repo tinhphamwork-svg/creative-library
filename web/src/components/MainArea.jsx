@@ -5,7 +5,8 @@ import MatrixView from './MatrixView';
 
 export default function MainArea({ creatives, loading, error, viewMode, selectedBrand,
   selectedProduct, selectedConcept, selectedCreative, dropdowns,
-  onViewModeChange, onSelectCreative, onSave }) {
+  syncing, actions, actionsOpen,
+  onViewModeChange, onSelectCreative, onSave, onSync, onActionsToggle, onMarkDone }) {
 
   const [filters, setFilters] = useState({ format: '', status: '', brief_status: '', assignee: '' });
   const [modalOpen, setModalOpen] = useState(false);
@@ -77,12 +78,65 @@ export default function MainArea({ creatives, loading, error, viewMode, selected
 
           <span className="text-xs text-slate-400">{filtered.length} creatives</span>
 
+          {/* Sync from Meta */}
+          <button onClick={onSync} disabled={syncing}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-50 transition-colors">
+            <span className={syncing ? 'animate-spin inline-block' : ''}>⟳</span>
+            {syncing ? 'Syncing…' : 'Sync Meta'}
+          </button>
+
+          {/* Actions queue badge */}
+          <button onClick={onActionsToggle}
+            className={`relative flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border transition-colors
+              ${actionsOpen ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'}`}>
+            ⚡ Actions
+            {actions.length > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                {actions.length}
+              </span>
+            )}
+          </button>
+
           <button onClick={handleNewCreative}
             className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-md transition-colors">
             + New
           </button>
         </div>
       </div>
+
+      {/* Actions Queue Panel */}
+      {actionsOpen && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 flex-shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-amber-800">⚡ Pending Actions ({actions.length})</span>
+            <button onClick={onActionsToggle} className="text-amber-500 hover:text-amber-700 text-xs">✕</button>
+          </div>
+          {actions.length === 0 ? (
+            <p className="text-xs text-amber-600">Không có action nào đang chờ.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+              {actions.map(a => (
+                <div key={a.id} className="flex items-center gap-3 bg-white rounded-md px-3 py-2 border border-amber-200 text-xs">
+                  <span className={`px-1.5 py-0.5 rounded font-semibold
+                    ${a.action === 'Scale' ? 'bg-emerald-100 text-emerald-700' :
+                      a.action === 'Kill'  ? 'bg-red-100 text-red-700' :
+                      'bg-slate-100 text-slate-600'}`}>
+                    {a.action}
+                  </span>
+                  <span className="text-slate-500 font-mono">{a.creative_id}</span>
+                  <span className="text-slate-400 flex-1">{a.brand}</span>
+                  {a.notes && <span className="text-slate-400 truncate max-w-[120px]">{a.notes}</span>}
+                  <span className="text-slate-300">{a.created_at ? new Date(a.created_at).toLocaleDateString('vi-VN') : ''}</span>
+                  <button onClick={() => onMarkDone(a.id)}
+                    className="ml-auto text-xs text-emerald-600 hover:text-emerald-800 font-semibold whitespace-nowrap">
+                    ✓ Done
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">

@@ -21,9 +21,13 @@ async function gasCall(action, data = null) {
   return json;
 }
 
-export const getBrands     = ()              => gasCall('getBrands');
-export const getDropdowns  = ()              => gasCall('getDropdowns');
-export const getCreatives  = (brand)         => gasCall('getCreatives', { brand });
-export const saveCreative  = (brand, row)    => gasCall('saveCreative', { brand, row });
-export const deleteCreative = (brand, id)   => gasCall('deleteCreative', { brand, id });
-export const addBrand      = (brand)         => gasCall('addBrand', { brand });
+export const getBrands      = ()                              => gasCall('getBrands');
+export const getDropdowns   = ()                              => gasCall('getDropdowns');
+export const getCreatives   = (brand)                        => gasCall('getCreatives', { brand });
+export const saveCreative   = (brand, row)                   => gasCall('saveCreative', { brand, row });
+export const deleteCreative = (brand, id)                    => gasCall('deleteCreative', { brand, id });
+export const addBrand       = (brand)                        => gasCall('addBrand', { brand });
+export const syncMeta       = ()                             => gasCall('sync');
+export const getActions     = (brand)                        => gasCall('getActions', { brand });
+export const addAction      = (brand, creativeId, action, notes) => gasCall('addAction', { brand, creativeId, action, notes });
+export const markActionDone = (actionId)                     => gasCall('markActionDone', { actionId });

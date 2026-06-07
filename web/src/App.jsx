@@ -1,6 +1,7 @@
 // web/src/App.jsx
 import { useState, useEffect } from 'react';
-import { getBrands, getDropdowns, addBrand, setAuthToken, getAuthToken } from './api';
+import { getBrands, getDropdowns, addBrand, setAuthToken, getAuthToken,
+         syncMeta, getActions, addAction, markActionDone } from './api';
 import { useCreatives } from './hooks/useCreatives';
 import Sidebar from './components/Sidebar';
 import MainArea from './components/MainArea';
@@ -21,6 +22,9 @@ export default function App() {
   const [selectedCreative, setSelectedCreative] = useState(null);
   const [viewMode, setViewMode] = useState('gallery');
   const [toast, setToast] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [actions, setActions] = useState([]);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const { cache, loading, error, load, save, remove, getFiltered, getTree } = useCreatives();
 
@@ -67,9 +71,12 @@ export default function App() {
 
   if (!authed) return <LoginPage onLogin={handleLogin} error={authError} />;
 
-  // Load creatives khi đổi brand
+  // Load creatives + actions khi đổi brand
   useEffect(() => {
-    if (selectedBrand) load(selectedBrand);
+    if (selectedBrand) {
+      load(selectedBrand);
+      loadActions(selectedBrand);
+    }
   }, [selectedBrand, load]);
 
   function showToast(type, msg) {
@@ -82,6 +89,46 @@ export default function App() {
       await save(selectedBrand, row);
       showToast('success', row.id ? 'Đã cập nhật creative' : 'Đã thêm creative mới');
       setSelectedCreative(null);
+    } catch (err) {
+      showToast('error', err.message);
+    }
+  }
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      const res = await syncMeta();
+      showToast('success', `Sync xong: ${res.updated} creatives cập nhật${res.errors?.length ? `, ${res.errors.length} lỗi` : ''}`);
+      if (selectedBrand) load(selectedBrand);
+    } catch (err) {
+      showToast('error', 'Sync thất bại: ' + err.message);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function loadActions(brand) {
+    try {
+      const list = await getActions(brand || undefined);
+      setActions(list);
+    } catch (_) {}
+  }
+
+  async function handleAddAction(creativeId, action, notes) {
+    try {
+      await addAction(selectedBrand, creativeId, action, notes);
+      showToast('success', `Đã queue: ${action} → ${creativeId}`);
+      loadActions(selectedBrand);
+      setActionsOpen(true);
+    } catch (err) {
+      showToast('error', err.message);
+    }
+  }
+
+  async function handleMarkDone(actionId) {
+    try {
+      await markActionDone(actionId);
+      setActions(prev => prev.filter(a => a.id !== actionId));
     } catch (err) {
       showToast('error', err.message);
     }
@@ -139,9 +186,15 @@ export default function App() {
         selectedConcept={selectedConcept}
         selectedCreative={selectedCreative}
         dropdowns={dropdowns}
+        syncing={syncing}
+        actions={actions}
+        actionsOpen={actionsOpen}
         onViewModeChange={setViewMode}
         onSelectCreative={setSelectedCreative}
         onSave={handleSave}
+        onSync={handleSync}
+        onActionsToggle={() => setActionsOpen(o => !o)}
+        onMarkDone={handleMarkDone}
       />
 
       {selectedCreative && (
@@ -150,6 +203,7 @@ export default function App() {
           onClose={() => setSelectedCreative(null)}
           onDelete={() => handleDelete(selectedCreative.id)}
           onSave={handleSave}
+          onAction={handleAddAction}
           dropdowns={dropdowns}
           existingProducts={Object.keys(tree)}
           existingConcepts={selectedProduct ? (tree[selectedProduct] || []) : []}
