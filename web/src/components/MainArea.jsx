@@ -4,9 +4,9 @@ import CreativeModal from './CreativeModal';
 import MatrixView from './MatrixView';
 
 export default function MainArea({ creatives, loading, error, viewMode, selectedBrand,
-  selectedProduct, selectedConcept, selectedCreative, dropdowns,
+  selectedProduct, selectedConcept, selectedCreative, dropdowns, codes, brandCode,
   syncing, actions, actionsOpen,
-  onViewModeChange, onSelectCreative, onSave, onSync, onActionsToggle, onMarkDone }) {
+  onViewModeChange, onSelectCreative, onSave, onSync, onActionsToggle, onMarkDone, onAddCode }) {
 
   const [filters, setFilters] = useState({ format: '', status: '', brief_status: '', assignee: '' });
   const [modalOpen, setModalOpen] = useState(false);
@@ -205,11 +205,11 @@ export default function MainArea({ creatives, loading, error, viewMode, selected
         <CreativeModal
           creative={editingCreative}
           dropdowns={dropdowns}
-          existingProducts={[...new Set(creatives.map(c => c.product).filter(Boolean))]}
-          existingConcepts={[...new Set(creatives.map(c => c.concept).filter(Boolean))]}
-          existingAngles={[...new Set(creatives.map(c => c.angle).filter(Boolean))]}
+          codes={codes}
+          brandCode={brandCode}
           onClose={() => setModalOpen(false)}
           onSave={async (row) => { await onSave(row); setModalOpen(false); }}
+          onAddCode={onAddCode}
         />
       )}
     </main>

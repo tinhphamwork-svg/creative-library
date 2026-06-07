@@ -1,7 +1,8 @@
 // web/src/App.jsx
 import { useState, useEffect } from 'react';
 import { getBrands, getDropdowns, addBrand, setAuthToken, getAuthToken,
-         syncMeta, getActions, addAction, markActionDone } from './api';
+         syncMeta, getActions, addAction, markActionDone,
+         getCodes, saveCode } from './api';
 import { useCreatives } from './hooks/useCreatives';
 import Sidebar from './components/Sidebar';
 import MainArea from './components/MainArea';
@@ -25,6 +26,7 @@ export default function App() {
   const [syncing, setSyncing] = useState(false);
   const [actions, setActions] = useState([]);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [codes, setCodes] = useState({});
 
   const { cache, loading, error, load, save, remove, getFiltered, getTree } = useCreatives();
 
@@ -33,9 +35,10 @@ export default function App() {
     try {
       const payload = JSON.parse(atob(credential.split('.')[1]));
       setUserEmail(payload.email || '');
-      const [b, d] = await Promise.all([getBrands(), getDropdowns()]);
+      const [b, d, c] = await Promise.all([getBrands(), getDropdowns(), getCodes()]);
       setBrands(b);
       setDropdowns(d);
+      setCodes(c);
       setAuthed(true);
       setAuthError(null);
     } catch (err) {
@@ -56,8 +59,8 @@ export default function App() {
   // Load brands + dropdowns on mount nếu đã có token trong sessionStorage
   useEffect(() => {
     if (authed && brands.length === 0) {
-      Promise.all([getBrands(), getDropdowns()])
-        .then(([b, d]) => { setBrands(b); setDropdowns(d); })
+      Promise.all([getBrands(), getDropdowns(), getCodes()])
+        .then(([b, d, c]) => { setBrands(b); setDropdowns(d); setCodes(c); })
         .catch(err => {
           if (err.message.includes('Unauthorized') || err.message.includes('Access denied')) {
             setAuthToken('');
@@ -125,6 +128,16 @@ export default function App() {
     }
   }
 
+  async function handleAddCode(code, type, description) {
+    try {
+      await saveCode(code, type, description);
+      const updated = await getCodes();
+      setCodes(updated);
+    } catch (err) {
+      showToast('error', err.message);
+    }
+  }
+
   async function handleMarkDone(actionId) {
     try {
       await markActionDone(actionId);
@@ -159,6 +172,13 @@ export default function App() {
   const existingAngles = selectedBrand
     ? [...new Set((cache[selectedBrand] || []).map(c => c.angle).filter(Boolean))]
     : [];
+  // Tìm brand code từ Code Legend (ví dụ "Curacoro" → "BR01" → code part = "CRC")
+  const brandEntry = (codes.brand || []).find(b =>
+    b.description.toLowerCase().includes((selectedBrand || '').toLowerCase())
+  );
+  const brandCode = brandEntry
+    ? brandEntry.description.split(' - ')[0]?.trim()
+    : (selectedBrand || '').slice(0, 3).toUpperCase();
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-sm text-slate-800">
@@ -186,6 +206,8 @@ export default function App() {
         selectedConcept={selectedConcept}
         selectedCreative={selectedCreative}
         dropdowns={dropdowns}
+        codes={codes}
+        brandCode={brandCode}
         syncing={syncing}
         actions={actions}
         actionsOpen={actionsOpen}
@@ -195,6 +217,7 @@ export default function App() {
         onSync={handleSync}
         onActionsToggle={() => setActionsOpen(o => !o)}
         onMarkDone={handleMarkDone}
+        onAddCode={handleAddCode}
       />
 
       {selectedCreative && (
@@ -204,10 +227,10 @@ export default function App() {
           onDelete={() => handleDelete(selectedCreative.id)}
           onSave={handleSave}
           onAction={handleAddAction}
+          onAddCode={handleAddCode}
           dropdowns={dropdowns}
-          existingProducts={Object.keys(tree)}
-          existingConcepts={selectedProduct ? (tree[selectedProduct] || []) : []}
-          existingAngles={existingAngles}
+          codes={codes}
+          brandCode={brandCode}
         />
       )}
 

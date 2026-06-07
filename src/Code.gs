@@ -56,6 +56,8 @@ function doGet(e) {
     else if (action === 'addAction')     result = addAction(data.brand, data.creativeId, data.action, data.notes);
     else if (action === 'markActionDone') result = markActionDone(data.actionId);
     else if (action === 'getActions')    result = getActions(data.brand);
+    else if (action === 'getCodes')      result = getCodes();
+    else if (action === 'saveCode')      result = saveCode(data.code, data.type, data.description);
     else result = { error: 'Unknown action: ' + action };
   } catch (err) {
     result = { error: err.message };
@@ -105,10 +107,47 @@ function getCreatives(brand) {
 
 const CREATIVE_HEADERS = ['id','product','concept','angle','hook','format','status',
                           'brief_status','assignee','launch_date','spend','roas',
-                          'ctr','cpm','preview_url','notes','meta_ad_id','last_synced'];
+                          'ctr','cpm','preview_url','notes','meta_ad_id','last_synced',
+                          'concept_code','angle_code','framework','framework_code',
+                          'format_code','version','ad_name_code'];
 
 const SHEET_ACTIONS = 'Actions';
 const ACTION_HEADERS = ['id','brand','creative_id','action','created_at','notes','done'];
+
+const SHEET_CODES = 'Code Legend';
+const CODE_HEADERS = ['code','type','description'];
+
+const SAMPLE_CODES = [
+  // Brands
+  ['BR01','brand','CRC - Curacoro'],
+  // Concepts
+  ['C01','concept','Transformation'],
+  ['C02','concept','Problem Solution'],
+  ['C03','concept','Social Proof'],
+  ['C04','concept','Product Feature'],
+  ['C05','concept','Education'],
+  // Frameworks
+  ['F01','framework','Pain Point'],
+  ['F02','framework','Social Proof'],
+  ['F03','framework','Authority'],
+  ['F04','framework','Curiosity'],
+  ['F05','framework','FOMO / Urgency'],
+  // Angles
+  ['A01','angle','Da khô bong tróc khi makeup'],
+  ['A02','angle','Dùng nhiều sản phẩm vẫn thiếu ẩm'],
+  ['A03','angle','Chi tiền nhiều nhưng không thấy kết quả'],
+  ['A04','angle','Da căng rát sau khi rửa mặt'],
+  ['A05','angle','10,000 khách hàng thấy cải thiện sau 2 tuần'],
+  ['A06','angle','Bác sĩ da liễu khuyên dùng'],
+  ['A07','angle','Tại sao da khô dù uống đủ nước'],
+  ['A08','angle','Da nhạy cảm không dùng được hóa chất mạnh'],
+  // Formats
+  ['FT01','format','Video 9:16'],
+  ['FT02','format','Static 1:1'],
+  ['FT03','format','Static 4:5'],
+  ['FT04','format','Carousel'],
+  ['FT05','format','Story'],
+];
 
 function ensureBrandSheet(ss, brand) {
   let sheet = ss.getSheetByName(brand);
@@ -200,6 +239,9 @@ function setupConfig() {
   }
   ensureActionsSheet(ss);
   Logger.log('✅ Actions sheet sẵn sàng.');
+  setupCodeLegend(ss);
+  migrateSheets();
+  Logger.log('✅ Code Legend và schema migration xong.');
 }
 
 function authorizeExternalRequest() {
@@ -215,8 +257,81 @@ function onOpen() {
 }
 
 // ============================================================
+// CODE LEGEND
+// ============================================================
+
+function setupCodeLegend(ss) {
+  let sheet = ss.getSheetByName(SHEET_CODES);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_CODES);
+    sheet.getRange(1, 1, 1, CODE_HEADERS.length).setValues([CODE_HEADERS])
+      .setFontWeight('bold').setBackground('#e0f2fe');
+    sheet.setFrozenRows(1);
+    if (SAMPLE_CODES.length > 0) {
+      sheet.getRange(2, 1, SAMPLE_CODES.length, 3).setValues(SAMPLE_CODES);
+    }
+    Logger.log('✅ Code Legend sheet đã tạo với sample data.');
+  } else {
+    Logger.log('Code Legend sheet đã tồn tại.');
+  }
+  return sheet;
+}
+
+function getCodes() {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_CODES);
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
+  const grouped = {};
+  values.forEach(([code, type, description]) => {
+    if (!code || !type) return;
+    if (!grouped[type]) grouped[type] = [];
+    grouped[type].push({ code: String(code), description: String(description) });
+  });
+  return grouped;
+}
+
+function saveCode(code, type, description) {
+  if (!code || !type || !description) throw new Error('code, type, description bắt buộc');
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_CODES);
+  if (!sheet) throw new Error('Code Legend chưa tồn tại. Chạy setupConfig() trước.');
+  const existing = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().flat().map(String)
+    : [];
+  if (existing.includes(String(code))) throw new Error('Code đã tồn tại: ' + code);
+  sheet.appendRow([code, type, description]);
+  return { saved: code };
+}
+
+function migrateSheets() {
+  const ss     = SpreadsheetApp.getActiveSpreadsheet();
+  const brands = getBrands();
+  const log    = [];
+  brands.forEach(brand => {
+    const sheet = ss.getSheetByName(brand);
+    if (!sheet) return;
+    let headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const missing = CREATIVE_HEADERS.filter(h => !headers.includes(h));
+    missing.forEach(h => {
+      const col = headers.length + 1;
+      sheet.getRange(1, col).setValue(h).setFontWeight('bold').setBackground('#f1f5f9');
+      headers = [...headers, h];
+    });
+    if (missing.length > 0) log.push(brand + ': +' + missing.join(', '));
+  });
+  Logger.log(log.length ? log.join('\n') : 'Tất cả sheets đã up-to-date.');
+  return log;
+}
+
+// ============================================================
 // META SYNC
 // ============================================================
+
+// Pattern mới: CRC-C01-A01-F01-FT01-V1 (bắt đầu bằng code, phần còn lại tự do)
+const CODE_AD_PATTERN = /^([A-Z0-9]+-C\d+-A\d+-F\d+-FT\d+-V\d+)/;
+// Pattern cũ: [CR-YYYYMMDD-XXXX] (backward compat)
+const LEGACY_AD_PATTERN = /\[CR-[\w-]+\]/;
 
 function syncMetaData() {
   const ss       = SpreadsheetApp.getActiveSpreadsheet();
@@ -226,53 +341,87 @@ function syncMetaData() {
   const rawValues  = rawSheet.getRange(1, 1, rawSheet.getLastRow(), rawSheet.getLastColumn()).getValues();
   const rawHeaders = rawValues[0];
 
-  const col = (name) => rawHeaders.indexOf(name);
-  const adNameCol  = col('ad_name');
-  const adIdCol    = col('ad_id');
-  const spendCol   = col('spend');
-  const roasCol    = col('purchase_roas') !== -1 ? col('purchase_roas') : col('roas');
-  const ctrCol     = col('ctr');
-  const cpmCol     = col('cpm');
+  const col    = (name) => rawHeaders.indexOf(name);
+  const adNameCol = col('ad_name');
+  const adIdCol   = col('ad_id');
+  const spendCol  = col('spend');
+  const roasCol   = col('purchase_roas') !== -1 ? col('purchase_roas') : col('roas');
+  const ctrCol    = col('ctr');
+  const cpmCol    = col('cpm');
 
   if (adNameCol === -1) return { updated: 0, skipped: 0, errors: ['Meta_Raw thiếu cột ad_name'] };
 
-  const creativeIdPattern = /\[CR-[\w-]+\]/;
   let updated = 0, skipped = 0;
   const errors = [];
 
   rawValues.slice(1).forEach((row) => {
     const adName = String(row[adNameCol] || '');
-    const match  = adName.match(creativeIdPattern);
-    if (!match) { skipped++; return; }
+    const get    = (c) => c !== -1 ? row[c] : '';
 
-    const creativeId = match[0].slice(1, -1); // strip [ ]
-    try {
-      const found = findCreativeById(ss, creativeId);
-      if (!found) { skipped++; return; }
+    const updates = {
+      spend:       get(spendCol),
+      roas:        get(roasCol),
+      ctr:         get(ctrCol),
+      cpm:         get(cpmCol),
+      meta_ad_id:  adIdCol !== -1 ? row[adIdCol] : '',
+      last_synced: new Date().toISOString(),
+    };
 
-      const { sheet, rowIndex, headers } = found;
-      const get = (c) => c !== -1 ? row[c] : '';
-      const updates = {
-        spend:       get(spendCol),
-        roas:        get(roasCol),
-        ctr:         get(ctrCol),
-        cpm:         get(cpmCol),
-        meta_ad_id:  adIdCol !== -1 ? row[adIdCol] : '',
-        last_synced: new Date().toISOString(),
-      };
-      Object.entries(updates).forEach(([key, val]) => {
-        const colIdx = headers.indexOf(key);
-        if (colIdx !== -1 && val !== '') {
-          sheet.getRange(rowIndex, colIdx + 1).setValue(val);
-        }
-      });
-      updated++;
-    } catch (e) {
-      errors.push(creativeId + ': ' + e.message);
+    // Thử match code pattern mới trước
+    const newMatch = adName.match(CODE_AD_PATTERN);
+    if (newMatch) {
+      const adNameCode = newMatch[1];
+      try {
+        const found = findCreativeByAdCode(ss, adNameCode);
+        if (!found) { skipped++; return; }
+        applyUpdates(found, updates);
+        updated++;
+      } catch (e) { errors.push(adNameCode + ': ' + e.message); }
+      return;
     }
+
+    // Fallback: legacy [CR-ID] pattern
+    const legacyMatch = adName.match(LEGACY_AD_PATTERN);
+    if (legacyMatch) {
+      const creativeId = legacyMatch[0].slice(1, -1);
+      try {
+        const found = findCreativeById(ss, creativeId);
+        if (!found) { skipped++; return; }
+        applyUpdates(found, updates);
+        updated++;
+      } catch (e) { errors.push(creativeId + ': ' + e.message); }
+      return;
+    }
+
+    skipped++;
   });
 
   return { updated, skipped, errors };
+}
+
+function applyUpdates(found, updates) {
+  const { sheet, rowIndex, headers } = found;
+  Object.entries(updates).forEach(([key, val]) => {
+    const colIdx = headers.indexOf(key);
+    if (colIdx !== -1 && val !== '') {
+      sheet.getRange(rowIndex, colIdx + 1).setValue(val);
+    }
+  });
+}
+
+function findCreativeByAdCode(ss, adNameCode) {
+  const brands = getBrands();
+  for (const brand of brands) {
+    const sheet = ss.getSheetByName(brand);
+    if (!sheet || sheet.getLastRow() < 2) continue;
+    const headers    = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const codeColIdx = headers.indexOf('ad_name_code');
+    if (codeColIdx === -1) continue;
+    const codes  = sheet.getRange(2, codeColIdx + 1, sheet.getLastRow() - 1, 1).getValues().flat().map(String);
+    const rowIdx = codes.indexOf(adNameCode);
+    if (rowIdx !== -1) return { sheet, rowIndex: rowIdx + 2, headers };
+  }
+  return null;
 }
 
 function findCreativeById(ss, creativeId) {
@@ -283,7 +432,7 @@ function findCreativeById(ss, creativeId) {
     const headers  = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     const idColIdx = headers.indexOf('id');
     if (idColIdx === -1) continue;
-    const ids    = sheet.getRange(2, idColIdx + 1, sheet.getLastRow() - 1, 1).getValues().flat();
+    const ids    = sheet.getRange(2, idColIdx + 1, sheet.getLastRow() - 1, 1).getValues().flat().map(String);
     const rowIdx = ids.indexOf(creativeId);
     if (rowIdx !== -1) return { sheet, rowIndex: rowIdx + 2, headers };
   }

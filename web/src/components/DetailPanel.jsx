@@ -1,5 +1,5 @@
 // web/src/components/DetailPanel.jsx
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import CreativeModal from './CreativeModal';
 
 const STATUS_COLORS = {
@@ -19,12 +19,19 @@ function MetricBox({ label, value, highlight }) {
   );
 }
 
-export default function DetailPanel({ creative, dropdowns, existingProducts,
-  existingConcepts, existingAngles, onClose, onSave, onDelete, onAction }) {
+export default function DetailPanel({ creative, dropdowns, codes, brandCode,
+  onClose, onSave, onDelete, onAction, onAddCode }) {
 
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [actionSent, setActionSent] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  function copyAdName() {
+    navigator.clipboard.writeText(creative.ad_name_code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function handleAction(action) {
     setActionSent(action);
@@ -44,6 +51,19 @@ export default function DetailPanel({ creative, dropdowns, existingProducts,
         </div>
 
         <div className="flex-1 p-4 flex flex-col gap-4">
+          {/* Ad Name Code */}
+          {creative.ad_name_code && (
+            <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-2">
+              <span className="font-mono text-emerald-400 text-xs font-bold flex-1 truncate">
+                {creative.ad_name_code}
+              </span>
+              <button onClick={copyAdName}
+                className="text-xs text-slate-300 hover:text-white shrink-0">
+                {copied ? '✓' : '⎘'}
+              </button>
+            </div>
+          )}
+
           {/* Tags */}
           <div className="flex flex-wrap gap-1.5">
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusClass}`}>{creative.status}</span>
@@ -150,11 +170,11 @@ export default function DetailPanel({ creative, dropdowns, existingProducts,
         <CreativeModal
           creative={creative}
           dropdowns={dropdowns}
-          existingProducts={existingProducts}
-          existingConcepts={existingConcepts}
-          existingAngles={existingAngles}
+          codes={codes}
+          brandCode={brandCode}
           onClose={() => setEditOpen(false)}
           onSave={async (row) => { await onSave(row); setEditOpen(false); }}
+          onAddCode={onAddCode}
         />
       )}
     </>

@@ -31,3 +31,5 @@ export const syncMeta       = ()                             => gasCall('sync');
 export const getActions     = (brand)                        => gasCall('getActions', { brand });
 export const addAction      = (brand, creativeId, action, notes) => gasCall('addAction', { brand, creativeId, action, notes });
 export const markActionDone = (actionId)                     => gasCall('markActionDone', { actionId });
+export const getCodes       = ()                             => gasCall('getCodes');
+export const saveCode       = (code, type, description)      => gasCall('saveCode', { code, type, description });

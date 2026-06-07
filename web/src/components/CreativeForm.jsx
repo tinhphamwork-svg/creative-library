@@ -1,152 +1,222 @@
 // web/src/components/CreativeForm.jsx
 import { useState } from 'react';
+import CodeSelect from './CodeSelect';
 
-function AutocompleteInput({ label, value, onChange, suggestions, placeholder }) {
-  const [open, setOpen] = useState(false);
-  const filtered = suggestions.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s !== value);
-
+function Field({ label, children }) {
   return (
-    <div className="relative">
+    <div>
       <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">{label}</label>
-      <input
-        value={value}
-        onChange={e => { onChange(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder={placeholder}
-        className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-      />
-      {open && filtered.length > 0 && (
-        <ul className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-36 overflow-y-auto">
-          {filtered.map(s => (
-            <li key={s} onMouseDown={() => { onChange(s); setOpen(false); }}
-              className="px-3 py-1.5 text-sm hover:bg-blue-50 cursor-pointer">{s}</li>
-          ))}
-        </ul>
-      )}
+      {children}
     </div>
   );
 }
 
-export default function CreativeForm({ creative, dropdowns, existingProducts,
-  existingConcepts, existingAngles, onSave, onCancel }) {
+function TextInput({ value, onChange, placeholder, required }) {
+  return (
+    <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required}
+      className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+  );
+}
+
+function buildAdName(codes, brandCode) {
+  const { concept_code, angle_code, framework_code, format_code, version } = codes;
+  if (!concept_code || !angle_code || !framework_code || !format_code) return '';
+  const br = brandCode || 'BR';
+  const v  = version || '1';
+  return `${br}-${concept_code}-${angle_code}-${framework_code}-${format_code}-V${v}`;
+}
+
+export default function CreativeForm({ creative, dropdowns, codes = {}, brandCode,
+  onSave, onCancel, onAddCode }) {
 
   const [form, setForm] = useState({
-    id:           creative?.id || '',
-    product:      creative?.product || '',
-    concept:      creative?.concept || '',
-    angle:        creative?.angle || '',
-    hook:         creative?.hook || '',
-    format:       creative?.format || '',
-    status:       creative?.status || 'Testing',
-    brief_status: creative?.brief_status || 'Not Briefed',
-    assignee:     creative?.assignee || '',
-    launch_date:  creative?.launch_date || '',
-    spend:        creative?.spend || '',
-    roas:         creative?.roas || '',
-    ctr:          creative?.ctr || '',
-    cpm:          creative?.cpm || '',
-    preview_url:  creative?.preview_url || '',
-    notes:        creative?.notes || '',
+    id:             creative?.id || '',
+    product:        creative?.product || '',
+    concept:        creative?.concept || '',
+    concept_code:   creative?.concept_code || '',
+    angle:          creative?.angle || '',
+    angle_code:     creative?.angle_code || '',
+    framework:      creative?.framework || '',
+    framework_code: creative?.framework_code || '',
+    hook:           creative?.hook || '',
+    format:         creative?.format || '',
+    format_code:    creative?.format_code || '',
+    version:        creative?.version || '1',
+    ad_name_code:   creative?.ad_name_code || '',
+    status:         creative?.status || 'Testing',
+    brief_status:   creative?.brief_status || 'Not Briefed',
+    assignee:       creative?.assignee || '',
+    launch_date:    creative?.launch_date || '',
+    spend:          creative?.spend || '',
+    roas:           creative?.roas || '',
+    ctr:            creative?.ctr || '',
+    cpm:            creative?.cpm || '',
+    preview_url:    creative?.preview_url || '',
+    notes:          creative?.notes || '',
+    meta_ad_id:     creative?.meta_ad_id || '',
   });
 
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   function set(field, value) {
-    setForm(f => ({ ...f, [field]: value }));
+    setForm(f => {
+      const next = { ...f, [field]: value };
+      // Sync label fields khi chọn code
+      if (field === 'concept_code') {
+        const found = (codes.concept || []).find(c => c.code === value);
+        if (found) next.concept = found.description;
+      }
+      if (field === 'angle_code') {
+        const found = (codes.angle || []).find(c => c.code === value);
+        if (found) next.angle = found.description;
+      }
+      if (field === 'framework_code') {
+        const found = (codes.framework || []).find(c => c.code === value);
+        if (found) next.framework = found.description;
+      }
+      if (field === 'format') {
+        const found = (codes.format || []).find(c => c.description === value);
+        if (found) next.format_code = found.code;
+      }
+      if (field === 'format_code') {
+        const found = (codes.format || []).find(c => c.code === value);
+        if (found) next.format = found.description;
+      }
+      // Auto-generate ad_name_code
+      const updated = { ...next };
+      updated.ad_name_code = buildAdName(updated, brandCode);
+      return updated;
+    });
+  }
+
+  function copyAdName() {
+    if (!form.ad_name_code) return;
+    navigator.clipboard.writeText(form.ad_name_code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleAddCode(type, description) {
+    if (!onAddCode) return null;
+    // Auto-generate next code: C01→C02, A08→A09...
+    const prefix = { concept: 'C', angle: 'A', framework: 'F', format: 'FT' }[type] || 'X';
+    const existing = (codes[type] || []).map(c => c.code);
+    const nums = existing.map(c => parseInt(c.replace(/\D/g, '')) || 0);
+    const next = (Math.max(0, ...nums) + 1).toString().padStart(2, '0');
+    const newCode = prefix + next;
+    await onAddCode(newCode, type, description);
+    return newCode;
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.hook.trim()) return;
     setSaving(true);
-    try {
-      await onSave(form);
-    } finally {
-      setSaving(false);
-    }
+    try { await onSave(form); } finally { setSaving(false); }
   }
+
+  const adNameReady = !!form.ad_name_code;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3">
-        <AutocompleteInput label="Product" value={form.product} onChange={v => set('product', v)}
-          suggestions={existingProducts} placeholder="Running Shoes" />
-        <AutocompleteInput label="Concept" value={form.concept} onChange={v => set('concept', v)}
-          suggestions={existingConcepts} placeholder="Pain Point" />
-        <AutocompleteInput label="Angle" value={form.angle} onChange={v => set('angle', v)}
-          suggestions={existingAngles} placeholder="Recovery Pain" />
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Hook *</label>
-          <input required value={form.hook} onChange={e => set('hook', e.target.value)}
-            placeholder="Hook text / tên asset"
-            className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+
+      {/* Ad Name Code — hiện ở đầu nếu đã generate được */}
+      {adNameReady && (
+        <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-4 py-3">
+          <span className="font-mono text-emerald-400 text-sm font-bold tracking-wider flex-1">{form.ad_name_code}</span>
+          <button type="button" onClick={copyAdName}
+            className="text-xs text-slate-300 hover:text-white bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded transition-colors">
+            {copied ? '✓ Copied' : 'Copy'}
+          </button>
         </div>
+      )}
+
+      {/* Codes */}
+      <div className="grid grid-cols-2 gap-3">
+        <CodeSelect label="Concept" value={form.concept_code}
+          onChange={v => set('concept_code', v)}
+          options={codes.concept || []}
+          placeholder="Chọn concept..."
+          onAddNew={desc => handleAddCode('concept', desc)} />
+
+        <CodeSelect label="Angle" value={form.angle_code}
+          onChange={v => set('angle_code', v)}
+          options={codes.angle || []}
+          placeholder="Chọn angle..."
+          onAddNew={desc => handleAddCode('angle', desc)} />
+
+        <CodeSelect label="Framework" value={form.framework_code}
+          onChange={v => set('framework_code', v)}
+          options={codes.framework || []}
+          placeholder="Chọn framework..."
+          onAddNew={desc => handleAddCode('framework', desc)} />
+
+        <CodeSelect label="Format" value={form.format_code}
+          onChange={v => set('format_code', v)}
+          options={codes.format || []}
+          placeholder="Chọn format..."  />
       </div>
 
+      {/* Version */}
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Format</label>
-          <select value={form.format} onChange={e => set('format', e.target.value)}
-            className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
-            <option value="">— chọn —</option>
-            {(dropdowns.format || []).map(f => <option key={f}>{f}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Status</label>
+        <Field label="Version">
+          <input type="number" min="1" value={form.version} onChange={e => set('version', e.target.value)}
+            className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+        </Field>
+        <Field label="Product">
+          <TextInput value={form.product} onChange={v => set('product', v)} placeholder="Tên sản phẩm" />
+        </Field>
+      </div>
+
+      {/* Hook */}
+      <Field label="Hook *">
+        <TextInput required value={form.hook} onChange={v => set('hook', v)} placeholder="Hook text / tên asset" />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Status">
           <select value={form.status} onChange={e => set('status', e.target.value)}
             className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
             {(dropdowns.status || []).map(s => <option key={s}>{s}</option>)}
           </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Brief Status</label>
+        </Field>
+        <Field label="Brief Status">
           <select value={form.brief_status} onChange={e => set('brief_status', e.target.value)}
             className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
             {(dropdowns.briefStatus || []).map(s => <option key={s}>{s}</option>)}
           </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Assignee</label>
-          <input value={form.assignee} onChange={e => set('assignee', e.target.value)}
-            className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Launch Date</label>
+        </Field>
+        <Field label="Assignee">
+          <TextInput value={form.assignee} onChange={v => set('assignee', v)} />
+        </Field>
+        <Field label="Launch Date">
           <input type="date" value={form.launch_date} onChange={e => set('launch_date', e.target.value)}
             className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
-        </div>
+        </Field>
       </div>
 
       <div className="grid grid-cols-4 gap-3">
         {[['spend','Spend ($)'],['roas','ROAS'],['ctr','CTR (%)'],['cpm','CPM']].map(([field, lbl]) => (
-          <div key={field}>
-            <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">{lbl}</label>
+          <Field key={field} label={lbl}>
             <input type="number" step="any" value={form[field]} onChange={e => set(field, e.target.value)}
               className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
-          </div>
+          </Field>
         ))}
       </div>
 
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Preview URL</label>
-        <input value={form.preview_url} onChange={e => set('preview_url', e.target.value)}
-          placeholder="https://..."
-          className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
-      </div>
+      <Field label="Preview URL">
+        <TextInput value={form.preview_url} onChange={v => set('preview_url', v)} placeholder="https://..." />
+      </Field>
 
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Notes</label>
-        <textarea rows={3} value={form.notes} onChange={e => set('notes', e.target.value)}
+      <Field label="Notes">
+        <textarea rows={2} value={form.notes} onChange={e => set('notes', e.target.value)}
           className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
-      </div>
+      </Field>
 
       <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
         <button type="button" onClick={onCancel}
-          className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
-          Hủy
-        </button>
+          className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-md transition-colors">Hủy</button>
         <button type="submit" disabled={saving}
           className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors disabled:opacity-50">
           {saving ? 'Đang lưu...' : (form.id ? 'Cập nhật' : 'Thêm creative')}
