@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getBrands, getCreatives, saveCreative, deleteCreative, addBrand } from '../api';
+import { getBrands, getCreatives, saveCreative, deleteCreative, addBrand, getDropdowns } from '../api';
 
 const MOCK_URL = 'https://fake-gas.example.com/exec';
 
@@ -29,6 +29,14 @@ describe('getBrands', () => {
     });
 
     await expect(getBrands()).rejects.toThrow('Config sheet không tồn tại');
+  });
+
+  it('throw error khi HTTP response không ok', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+    });
+    await expect(getBrands()).rejects.toThrow('HTTP 500');
   });
 });
 
@@ -91,6 +99,26 @@ describe('deleteCreative', () => {
     expect(result.deleted).toBe('CR-20260606-1234');
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('action=deleteCreative')
+    );
+  });
+});
+
+describe('getDropdowns', () => {
+  it('trả về dropdown options object', async () => {
+    const mockDropdowns = {
+      format: ['Video 9:16', 'Static 1:1'],
+      status: ['Testing', 'Winning'],
+      briefStatus: ['Not Briefed', 'Briefed'],
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockDropdowns,
+    });
+
+    const result = await getDropdowns();
+    expect(result).toEqual(mockDropdowns);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('action=getDropdowns')
     );
   });
 });
