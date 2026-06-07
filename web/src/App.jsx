@@ -16,7 +16,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState('gallery');
   const [toast, setToast] = useState(null); // { type: 'success'|'error', msg }
 
-  const { loading, error, load, save, remove, getFiltered, getTree } = useCreatives();
+  const { cache, loading, error, load, save, remove, getFiltered, getTree } = useCreatives();
 
   // Load brands + dropdowns on mount
   useEffect(() => {
@@ -67,6 +67,9 @@ export default function App() {
 
   const tree = selectedBrand ? getTree(selectedBrand) : {};
   const creatives = getFiltered(selectedBrand, selectedProduct, selectedConcept);
+  const existingAngles = selectedBrand
+    ? [...new Set((cache[selectedBrand] || []).map(c => c.angle).filter(Boolean))]
+    : [];
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-sm text-slate-800">
@@ -106,6 +109,7 @@ export default function App() {
           dropdowns={dropdowns}
           existingProducts={Object.keys(tree)}
           existingConcepts={selectedProduct ? (tree[selectedProduct] || []) : []}
+          existingAngles={existingAngles}
         />
       )}
 

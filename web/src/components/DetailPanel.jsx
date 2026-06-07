@@ -20,7 +20,7 @@ function MetricBox({ label, value, highlight }) {
 }
 
 export default function DetailPanel({ creative, dropdowns, existingProducts,
-  existingConcepts, onClose, onSave, onDelete }) {
+  existingConcepts, existingAngles, onClose, onSave, onDelete }) {
 
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -117,7 +117,7 @@ export default function DetailPanel({ creative, dropdowns, existingProducts,
           dropdowns={dropdowns}
           existingProducts={existingProducts}
           existingConcepts={existingConcepts}
-          existingAngles={[]}
+          existingAngles={existingAngles}
           onClose={() => setEditOpen(false)}
           onSave={async (row) => { await onSave(row); setEditOpen(false); }}
         />
