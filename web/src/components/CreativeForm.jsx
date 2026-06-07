@@ -112,6 +112,11 @@ export default function CreativeForm({ creative, dropdowns, existingProducts,
           <input value={form.assignee} onChange={e => set('assignee', e.target.value)}
             className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
         </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Launch Date</label>
+          <input type="date" value={form.launch_date} onChange={e => set('launch_date', e.target.value)}
+            className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-3">
