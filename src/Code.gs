@@ -1,227 +1,190 @@
 // ============================================================
-// CREATIVE LIBRARY SIDEBAR — Code.gs
-// Backend cho Google Apps Script Sidebar App
+// CREATIVE LIBRARY — Code.gs
+// API backend via doGet: ?action=<name>&data=<JSON>
 // ============================================================
 
-// Tên các sheet (phải khớp chính xác với tên tab trong Spreadsheet)
-var SHEET_CREATIVE = 'Creative Library';
-var SHEET_CONCEPT  = 'Concept Hub';
-var SHEET_CONFIG   = 'Config';
+const SHEET_CONFIG = 'Config';
 
-// Dropdown values cố định
-var DROPDOWNS = {
-  format:            ['Video 9:16', 'Static 1:1', 'Static 4:5', 'Carousel', 'Story'],
-  statusCreative:    ['Testing', 'Winning', 'Scaling', 'Fatigued', 'Killed'],
-  briefStatus:       ['Not Briefed', 'Briefed', 'In Production', 'Ready to Launch', 'Live'],
-  statusConcept:     ['Active', 'Paused', 'Killed'],
-  campaignObjective: ['Awareness', 'Traffic', 'Conversion', 'Retention']
+const DROPDOWNS = {
+  format:      ['Video 9:16', 'Static 1:1', 'Static 4:5', 'Carousel', 'Story'],
+  status:      ['Testing', 'Winning', 'Scaling', 'Fatigued', 'Killed'],
+  briefStatus: ['Not Briefed', 'Briefed', 'In Production', 'Ready to Launch', 'Live'],
 };
 
 // ============================================================
-// MENU & SIDEBAR
+// ENTRY POINT
 // ============================================================
 
-/**
- * Tạo menu "🎨 Creative Library" khi mở Spreadsheet
- */
+function doGet(e) {
+  const action = (e.parameter && e.parameter.action) || '';
+  let data = {};
+  if (e.parameter && e.parameter.data) {
+    try {
+      data = JSON.parse(e.parameter.data);
+    } catch (_) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ error: 'data param không phải JSON hợp lệ' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  let result;
+  try {
+    if (action === 'getBrands')      result = getBrands();
+    else if (action === 'getCreatives') result = getCreatives(data.brand);
+    else if (action === 'getDropdowns') result = DROPDOWNS;
+    else if (action === 'saveCreative') result = saveCreative(data.brand, data.row);
+    else if (action === 'deleteCreative') result = deleteCreative(data.brand, data.id);
+    else if (action === 'addBrand')  result = addBrand(data.brand);
+    else result = { error: 'Unknown action: ' + action };
+  } catch (err) {
+    result = { error: err.message };
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ============================================================
+// READ
+// ============================================================
+
+function getBrands() {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_CONFIG);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  return sheet
+    .getRange(2, 1, sheet.getLastRow() - 1, 1)
+    .getValues()
+    .map(r => r[0])
+    .filter(b => b !== '');
+}
+
+function getCreatives(brand) {
+  if (!brand) throw new Error('brand param required');
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(brand);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+
+  const values  = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues();
+  const headers = values[0];
+
+  return values.slice(1)
+    .filter(row => row.some(cell => cell !== ''))
+    .map((row, i) => {
+      const obj = { _rowIndex: i + 2 };
+      headers.forEach((h, j) => { obj[h] = row[j]; });
+      return obj;
+    });
+}
+
+// ============================================================
+// WRITE
+// ============================================================
+
+function saveCreative(brand, row) {
+  if (!brand || !row) throw new Error('brand và row bắt buộc');
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(brand);
+  if (!sheet) throw new Error('Sheet không tồn tại: ' + brand);
+
+  const headers   = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const rowValues = headers.map(h => (row[h] !== undefined ? row[h] : ''));
+
+  if (!row.id || String(row.id).trim() === '') {
+    // New: generate ID rồi append
+    const idColIdx = headers.indexOf('id');
+    if (idColIdx === -1) throw new Error('Cột id không tìm thấy trong sheet ' + brand);
+    const newId = generateId();
+    rowValues[idColIdx] = newId;
+    sheet.appendRow(rowValues);
+    return { id: newId, rowIndex: sheet.getLastRow() };
+  }
+
+  // Update: tìm row theo id
+  const idColIdx = headers.indexOf('id');
+  if (idColIdx === -1) throw new Error('Cột id không tìm thấy trong sheet ' + brand);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) throw new Error('Creative không tìm thấy: ' + row.id);
+  const ids    = sheet.getRange(2, idColIdx + 1, lastRow - 1, 1).getValues().flat();
+  const rowIdx = ids.indexOf(row.id);
+  if (rowIdx === -1) throw new Error('Creative không tìm thấy: ' + row.id);
+  sheet.getRange(rowIdx + 2, 1, 1, rowValues.length).setValues([rowValues]);
+  return { id: row.id, rowIndex: rowIdx + 2 };
+}
+
+function deleteCreative(brand, id) {
+  if (!brand || !id) throw new Error('brand và id bắt buộc');
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(brand);
+  if (!sheet) throw new Error('Sheet không tồn tại: ' + brand);
+
+  const headers  = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const idColIdx = headers.indexOf('id');
+  if (idColIdx === -1) throw new Error('Cột id không tìm thấy');
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) throw new Error('Creative không tìm thấy: ' + id);
+  const ids    = sheet.getRange(2, idColIdx + 1, lastRow - 1, 1).getValues().flat();
+  const rowIdx = ids.indexOf(id);
+  if (rowIdx === -1) throw new Error('Creative không tìm thấy: ' + id);
+  sheet.deleteRow(rowIdx + 2);
+  return { deleted: id };
+}
+
+function addBrand(brand) {
+  if (!brand || String(brand).trim() === '') throw new Error('Tên brand không được trống');
+  const trimmed = String(brand).trim();
+  const ss      = SpreadsheetApp.getActiveSpreadsheet();
+
+  const configSheet = ss.getSheetByName(SHEET_CONFIG);
+  if (!configSheet) throw new Error('Config sheet không tồn tại. Chạy setupConfig() trước.');
+  const existing = getBrands();
+  if (existing.includes(trimmed)) throw new Error('Brand đã tồn tại: ' + trimmed);
+  configSheet.appendRow([trimmed]);
+
+  if (!ss.getSheetByName(trimmed)) {
+    const newSheet = ss.insertSheet(trimmed);
+    const headers  = ['id','product','concept','angle','hook','format','status',
+                      'brief_status','assignee','launch_date','spend','roas',
+                      'ctr','cpm','preview_url','notes'];
+    newSheet.getRange(1, 1, 1, headers.length).setValues([headers])
+      .setFontWeight('bold').setBackground('#f1f5f9');
+    newSheet.setFrozenRows(1);
+  }
+  return { added: trimmed };
+}
+
+// ============================================================
+// SETUP (chạy 1 lần nếu Config tab chưa có)
+// ============================================================
+
+function setupConfig() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss.getSheetByName(SHEET_CONFIG)) {
+    const sheet = ss.insertSheet(SHEET_CONFIG);
+    sheet.getRange(1, 1).setValue('Brand').setFontWeight('bold').setBackground('#f1f5f9');
+    sheet.setFrozenRows(1);
+    SpreadsheetApp.getUi().alert('✅ Config sheet đã tạo. Thêm brand names vào cột A.');
+  } else {
+    SpreadsheetApp.getUi().alert('Config sheet đã tồn tại.');
+  }
+}
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('🎨 Creative Library')
-    .addItem('Open App', 'showSidebar')
+    .addItem('Setup Config (chạy lần đầu)', 'setupConfig')
     .addToUi();
-}
-
-/**
- * Mở sidebar HTML — file 'sidebar.html' phải tồn tại trong Apps Script project
- */
-function showSidebar() {
-  var html = HtmlService.createHtmlOutputFromFile('sidebar')
-    .setTitle('Creative Library')
-    .setWidth(300);
-  SpreadsheetApp.getUi().showSidebar(html);
-}
-
-// ============================================================
-// DATA READ
-// ============================================================
-
-/**
- * Đọc toàn bộ data từ sheet, trả về array of objects với header làm key.
- * Row đầu tiên được dùng làm header (key của object).
- * @param {string} sheetName - Tên sheet cần đọc
- * @returns {Array<Object>} - Mảng objects, mỗi object là 1 row, có thêm _rowIndex
- */
-function getSheetData(sheetName) {
-  var ss    = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(sheetName);
-
-  // Trả về mảng rỗng nếu sheet không tồn tại
-  if (!sheet) return [];
-
-  var lastRow = sheet.getLastRow();
-  // Chỉ có header hoặc sheet trống, không có data
-  if (lastRow < 2) return [];
-
-  var lastCol = sheet.getLastColumn();
-  if (lastCol < 1) return [];
-
-  // Đọc toàn bộ data từ row 1 (header) đến lastRow
-  var range   = sheet.getRange(1, 1, lastRow, lastCol);
-  var values  = range.getValues();
-  var headers = values[0];
-  var result  = [];
-
-  // Chuyển mỗi row thành object { headerKey: cellValue }
-  for (var i = 1; i < values.length; i++) {
-    var row = values[i];
-
-    // Bỏ qua row hoàn toàn trống
-    var hasData = row.some(function(cell) { return cell !== ''; });
-    if (!hasData) continue;
-
-    var obj = { _rowIndex: i + 1 }; // row number thực tế trên sheet (1-based, row 1 = header)
-    headers.forEach(function(header, colIdx) {
-      obj[header] = row[colIdx];
-    });
-    result.push(obj);
-  }
-
-  return result;
-}
-
-// ============================================================
-// DATA WRITE
-// ============================================================
-
-/**
- * Ghi 1 row vào sheet.
- * Nếu rowIndex = -1: append row mới xuống cuối.
- * Nếu rowIndex > 0: update row đó (rowIndex là số thực tế trên sheet, 1-based).
- *
- * Đặc biệt: khi ghi vào Concept Hub với row mới và Concept ID trống → tự generate ID.
- *
- * @param {string} sheetName - Tên sheet
- * @param {Object} rowData   - Object { headerKey: value } — keys phải khớp với header
- * @param {number} rowIndex  - Row index thực tế trên sheet (1-based). -1 = append mới.
- * @returns {number} - Row index đã ghi (để client cập nhật _rowIndex trong state)
- */
-function saveRow(sheetName, rowData, rowIndex) {
-  var ss    = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error('Sheet không tồn tại: ' + sheetName);
-
-  // Khi tạo concept mới và Concept ID để trống → tự generate
-  if (sheetName === SHEET_CONCEPT && rowIndex === -1) {
-    if (!rowData['Concept ID'] || String(rowData['Concept ID']).trim() === '') {
-      rowData['Concept ID'] = generateConceptId();
-    }
-  }
-
-  // Lấy header từ row 1 để xác định thứ tự cột
-  var lastCol  = sheet.getLastColumn();
-  var headers  = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-
-  // Kiểm tra duplicate header để tránh ghi sai cột
-  var _seen = {};
-  headers.forEach(function(h) {
-    if (h && _seen[h]) throw new Error('Duplicate header trong sheet ' + sheetName + ': ' + h);
-    if (h) _seen[h] = true;
-  });
-
-  // Tạo mảng values theo đúng thứ tự header
-  var rowValues = headers.map(function(header) {
-    var val = rowData[header];
-    return (val !== undefined && val !== null) ? val : '';
-  });
-
-  if (rowIndex === -1) {
-    // Append row mới xuống cuối sheet
-    var newRowIndex = sheet.getLastRow() + 1; // tính trước để tránh race condition
-    sheet.appendRow(rowValues);
-    return newRowIndex;
-  } else {
-    // Update row đã có — ghi đè toàn bộ row
-    sheet.getRange(rowIndex, 1, 1, rowValues.length).setValues([rowValues]);
-    return rowIndex;
-  }
-}
-
-/**
- * Xóa 1 row theo index thực tế trên sheet (1-based).
- * Không cho phép xóa header (row 1).
- * @param {string} sheetName - Tên sheet
- * @param {number} rowIndex  - Row index thực tế (1-based)
- */
-function deleteRow(sheetName, rowIndex) {
-  var ss    = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error('Sheet không tồn tại: ' + sheetName);
-  if (rowIndex <= 1) throw new Error('Không thể xóa header row (row 1)');
-  sheet.deleteRow(rowIndex);
-}
-
-// ============================================================
-// CONFIG
-// ============================================================
-
-/**
- * Trả về config object gồm:
- * - brands: danh sách brands từ sheet Config (cột A, bỏ header)
- * - dropdowns: các giá trị dropdown cố định
- *
- * Sheet Config: row 1 = header "Brand", row 2+ = tên brand
- * Nếu không có sheet Config → brands = []
- */
-function getConfig() {
-  var ss          = SpreadsheetApp.getActiveSpreadsheet();
-  var configSheet = ss.getSheetByName(SHEET_CONFIG);
-  var brands      = [];
-
-  if (configSheet) {
-    var lastRow = configSheet.getLastRow();
-    if (lastRow >= 2) {
-      // Lấy từ A2 đến cuối (bỏ header A1)
-      var brandValues = configSheet.getRange(2, 1, lastRow - 1, 1).getValues();
-      brands = brandValues
-        .map(function(row) { return row[0]; })
-        .filter(function(b) { return b !== ''; }); // bỏ ô trống
-    }
-  }
-
-  return {
-    brands:    brands,
-    dropdowns: DROPDOWNS
-  };
 }
 
 // ============================================================
 // UTILITIES
 // ============================================================
 
-/**
- * Tạo Concept ID duy nhất dạng "CON-YYYYMMDD-XXXX"
- * Kiểm tra trùng với Concept ID đã có trong sheet trước khi return
- * @returns {string} - Concept ID mới, đảm bảo không trùng
- */
-function generateConceptId() {
-  var ss    = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(SHEET_CONCEPT);
-
-  // Lấy danh sách Concept ID đã tồn tại để tránh trùng
-  var existing = [];
-  if (sheet && sheet.getLastRow() >= 2) {
-    var rows = getSheetData(SHEET_CONCEPT);
-    existing = rows.map(function(r) { return r['Concept ID'] || ''; });
-  }
-
-  var id, attempts = 0;
-  do {
-    var now    = new Date();
-    var date   = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyyMMdd');
-    var random = Math.floor(Math.random() * 9000) + 1000; // 1000-9999
-    id = 'CON-' + date + '-' + random;
-    attempts++;
-  } while (existing.indexOf(id) !== -1 && attempts < 20);
-
-  return id;
+function generateId() {
+  const now  = new Date();
+  const date = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyyMMdd');
+  const rand = Math.floor(Math.random() * 9000) + 1000;
+  return 'CR-' + date + '-' + rand;
 }
