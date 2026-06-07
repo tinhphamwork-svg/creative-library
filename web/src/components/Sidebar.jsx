@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 export default function Sidebar({ brands, selectedBrand, selectedProduct, selectedConcept,
-  tree, onSelectBrand, onSelectProduct, onSelectConcept, onAddBrand }) {
+  tree, onSelectBrand, onSelectProduct, onSelectConcept, onAddBrand, userEmail, onLogout }) {
 
   const [addingBrand, setAddingBrand] = useState(false);
   const [newBrandName, setNewBrandName] = useState('');
@@ -61,7 +61,7 @@ export default function Sidebar({ brands, selectedBrand, selectedProduct, select
       ))}
 
       {/* Add Brand */}
-      <div className="mt-auto px-3 pb-4 pt-2">
+      <div className="mt-auto px-3 pt-2">
         {addingBrand ? (
           <div className="flex flex-col gap-1">
             <input
@@ -86,6 +86,23 @@ export default function Sidebar({ brands, selectedBrand, selectedProduct, select
           </button>
         )}
       </div>
+
+      {/* User / Logout */}
+      {userEmail && (
+        <div className="px-3 py-3 mt-2 border-t border-slate-700 flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            {userEmail[0].toUpperCase()}
+          </div>
+          <span className="text-xs text-slate-400 truncate flex-1">{userEmail}</span>
+          <button
+            onClick={onLogout}
+            className="text-xs text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
+            title="Đăng xuất"
+          >
+            ↪
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

@@ -10,6 +10,9 @@ import LoginPage from './components/LoginPage';
 export default function App() {
   const [authed, setAuthed] = useState(!!getAuthToken());
   const [authError, setAuthError] = useState(null);
+  const [userEmail, setUserEmail] = useState(() => {
+    try { return JSON.parse(atob(getAuthToken().split('.')[1])).email || ''; } catch { return ''; }
+  });
   const [brands, setBrands] = useState([]);
   const [dropdowns, setDropdowns] = useState({ format: [], status: [], briefStatus: [] });
   const [selectedBrand, setSelectedBrand] = useState(null);
@@ -24,6 +27,8 @@ export default function App() {
   async function handleLogin(credential) {
     setAuthToken(credential);
     try {
+      const payload = JSON.parse(atob(credential.split('.')[1]));
+      setUserEmail(payload.email || '');
       const [b, d] = await Promise.all([getBrands(), getDropdowns()]);
       setBrands(b);
       setDropdowns(d);
@@ -40,6 +45,7 @@ export default function App() {
   function handleLogout() {
     setAuthToken('');
     setAuthed(false);
+    setUserEmail('');
     setBrands([]);
   }
 
@@ -109,12 +115,6 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-sm text-slate-800">
-      <button
-        onClick={handleLogout}
-        className="fixed top-2 right-3 z-50 text-xs text-slate-400 hover:text-slate-600"
-      >
-        Logout
-      </button>
       <Sidebar
         brands={brands}
         selectedBrand={selectedBrand}
@@ -125,6 +125,8 @@ export default function App() {
         onSelectProduct={(p) => { setSelectedProduct(p); setSelectedConcept(null); setSelectedCreative(null); }}
         onSelectConcept={(c) => { setSelectedConcept(c); setSelectedCreative(null); }}
         onAddBrand={handleAddBrand}
+        userEmail={userEmail}
+        onLogout={handleLogout}
       />
 
       <MainArea
