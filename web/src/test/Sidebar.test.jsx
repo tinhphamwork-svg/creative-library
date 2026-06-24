@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import Sidebar from '../components/Sidebar';
 
-const mockProps = {
-  brands: ['Nike', 'Adidas'],
+const defaultProps = {
+  brands: ['Curacoro', 'BrandB'],
   selectedBrand: null,
   selectedProduct: null,
   selectedConcept: null,
@@ -12,31 +12,48 @@ const mockProps = {
   onSelectProduct: vi.fn(),
   onSelectConcept: vi.fn(),
   onAddBrand: vi.fn(),
+  userEmail: 'test@example.com',
+  onLogout: vi.fn(),
+  sidebarOpen: false,
+  onToggleSidebar: vi.fn(),
 };
 
 describe('Sidebar', () => {
-  it('hiện danh sách brands', () => {
-    render(<Sidebar {...mockProps} />);
-    expect(screen.getByText('Nike')).toBeInTheDocument();
-    expect(screen.getByText('Adidas')).toBeInTheDocument();
+  it('renders brand avatars in collapsed state', () => {
+    render(<Sidebar {...defaultProps} />);
+    expect(screen.getByTitle('Curacoro')).toBeInTheDocument();
+    expect(screen.getByTitle('BrandB')).toBeInTheDocument();
   });
 
-  it('gọi onSelectBrand khi click brand', () => {
+  it('calls onSelectBrand when brand avatar clicked', () => {
     const onSelectBrand = vi.fn();
-    render(<Sidebar {...mockProps} onSelectBrand={onSelectBrand} />);
-    fireEvent.click(screen.getByText('Nike'));
-    expect(onSelectBrand).toHaveBeenCalledWith('Nike');
+    render(<Sidebar {...defaultProps} onSelectBrand={onSelectBrand} />);
+    fireEvent.click(screen.getByTitle('Curacoro'));
+    expect(onSelectBrand).toHaveBeenCalledWith('Curacoro');
   });
 
-  it('hiện product tree khi brand được chọn', () => {
-    render(<Sidebar {...mockProps} selectedBrand="Nike" tree={{ 'Running': ['Pain Point', 'Social Proof'] }} />);
-    expect(screen.getByText('Running')).toBeInTheDocument();
+  it('calls onToggleSidebar when toggle button clicked', () => {
+    const onToggleSidebar = vi.fn();
+    render(<Sidebar {...defaultProps} onToggleSidebar={onToggleSidebar} />);
+    fireEvent.click(screen.getByLabelText('Toggle sidebar'));
+    expect(onToggleSidebar).toHaveBeenCalled();
   });
 
-  it('hiện concept list khi product được chọn', () => {
-    render(<Sidebar {...mockProps} selectedBrand="Nike" selectedProduct="Running"
-      tree={{ 'Running': ['Pain Point', 'Social Proof'] }} />);
-    expect(screen.getByText('Pain Point')).toBeInTheDocument();
-    expect(screen.getByText('Social Proof')).toBeInTheDocument();
+  it('shows brand name labels when expanded', () => {
+    render(<Sidebar {...defaultProps} sidebarOpen={true} />);
+    expect(screen.getByText('Curacoro')).toBeInTheDocument();
+  });
+
+  it('shows product tree when brand selected and expanded', () => {
+    render(<Sidebar {...defaultProps} sidebarOpen={true} selectedBrand="Curacoro"
+      tree={{ 'Serum C': ['Pain Point', 'Social Proof'] }} />);
+    expect(screen.getByText('Serum C')).toBeInTheDocument();
+  });
+
+  it('calls onLogout when logout button clicked', () => {
+    const onLogout = vi.fn();
+    render(<Sidebar {...defaultProps} onLogout={onLogout} />);
+    fireEvent.click(screen.getByLabelText('Đăng xuất'));
+    expect(onLogout).toHaveBeenCalled();
   });
 });
