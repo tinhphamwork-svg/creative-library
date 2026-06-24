@@ -236,7 +236,7 @@ export default function App() {
           brands={brands}
           cache={cache}
           actions={actions}
-          onSelectBrand={(b) => { setSelectedBrand(b); setSelectedProduct(null); setSelectedConcept(null); }}
+          onSelectBrand={(b) => { setSelectedBrand(b); setSelectedProduct(null); setSelectedConcept(null); setSelectedCreative(null); }}
           onActionsToggle={() => setActionsOpen(o => !o)}
         />
       )}
