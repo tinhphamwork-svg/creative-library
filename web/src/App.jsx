@@ -6,6 +6,7 @@ import { getBrands, getDropdowns, addBrand, setAuthToken, getAuthToken,
 import { useCreatives } from './hooks/useCreatives';
 import Sidebar from './components/Sidebar';
 import MainArea from './components/MainArea';
+import Dashboard from './components/Dashboard';
 import DetailPanel from './components/DetailPanel';
 import LoginPage from './components/LoginPage';
 
@@ -206,29 +207,39 @@ export default function App() {
         onToggleSidebar={() => setSidebarOpen(o => !o)}
       />
 
-      <MainArea
-        creatives={creatives}
-        loading={loading}
-        error={error}
-        viewMode={viewMode}
-        selectedBrand={selectedBrand}
-        selectedProduct={selectedProduct}
-        selectedConcept={selectedConcept}
-        selectedCreative={selectedCreative}
-        dropdowns={dropdowns}
-        codes={codes}
-        brandCode={brandCode}
-        syncing={syncing}
-        actions={actions}
-        actionsOpen={actionsOpen}
-        onViewModeChange={setViewMode}
-        onSelectCreative={setSelectedCreative}
-        onSave={handleSave}
-        onSync={handleSync}
-        onActionsToggle={() => setActionsOpen(o => !o)}
-        onMarkDone={handleMarkDone}
-        onAddCode={handleAddCode}
-      />
+      {selectedBrand ? (
+        <MainArea
+          creatives={creatives}
+          loading={loading}
+          error={error}
+          viewMode={viewMode}
+          selectedBrand={selectedBrand}
+          selectedProduct={selectedProduct}
+          selectedConcept={selectedConcept}
+          selectedCreative={selectedCreative}
+          dropdowns={dropdowns}
+          codes={codes}
+          brandCode={brandCode}
+          syncing={syncing}
+          actions={actions}
+          actionsOpen={actionsOpen}
+          onViewModeChange={setViewMode}
+          onSelectCreative={setSelectedCreative}
+          onSave={handleSave}
+          onSync={handleSync}
+          onActionsToggle={() => setActionsOpen(o => !o)}
+          onMarkDone={handleMarkDone}
+          onAddCode={handleAddCode}
+        />
+      ) : (
+        <Dashboard
+          brands={brands}
+          cache={cache}
+          actions={actions}
+          onSelectBrand={(b) => { setSelectedBrand(b); setSelectedProduct(null); setSelectedConcept(null); }}
+          onActionsToggle={() => setActionsOpen(o => !o)}
+        />
+      )}
 
       {selectedCreative && (
         <DetailPanel

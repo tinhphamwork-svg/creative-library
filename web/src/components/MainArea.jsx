@@ -28,14 +28,6 @@ export default function MainArea({ creatives, loading, error, viewMode, selected
 
   const breadcrumb = [selectedBrand, selectedProduct, selectedConcept].filter(Boolean).join(' / ') || 'Chọn brand';
 
-  if (!selectedBrand) {
-    return (
-      <main className="flex-1 flex items-center justify-center text-slate-400 text-sm">
-        ← Chọn brand từ sidebar để bắt đầu
-      </main>
-    );
-  }
-
   return (
     <main className="flex-1 flex flex-col min-w-0">
       {/* TopBar */}
