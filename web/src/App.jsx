@@ -28,6 +28,14 @@ export default function App() {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [codes, setCodes] = useState({});
 
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    return localStorage.getItem('sidebarOpen') !== 'false';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebarOpen', String(sidebarOpen));
+  }, [sidebarOpen]);
+
   const { cache, loading, error, load, save, remove, getFiltered, getTree } = useCreatives();
 
   async function handleLogin(credential) {
@@ -181,7 +189,7 @@ export default function App() {
     : (selectedBrand || '').slice(0, 3).toUpperCase();
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-sm text-slate-800">
+    <div className="flex h-screen bg-slate-950 overflow-hidden font-sans text-sm text-slate-100">
       <Sidebar
         brands={brands}
         selectedBrand={selectedBrand}
@@ -194,6 +202,8 @@ export default function App() {
         onAddBrand={handleAddBrand}
         userEmail={userEmail}
         onLogout={handleLogout}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen(o => !o)}
       />
 
       <MainArea
