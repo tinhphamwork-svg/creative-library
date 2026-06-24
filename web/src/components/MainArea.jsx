@@ -33,11 +33,7 @@ export default function MainArea({ creatives, loading, error, viewMode, selected
       {/* TopBar */}
       <div className="flex items-center gap-3 px-4 py-3 bg-slate-900 border-b border-slate-700 flex-shrink-0">
         <div className="flex items-center gap-1 text-xs text-slate-400">
-          <button
-            onClick={() => {}}
-            className="text-slate-400 hover:text-slate-200 transition-colors">
-            {selectedBrand}
-          </button>
+          <span className="text-slate-400">{selectedBrand}</span>
           {selectedProduct && (
             <>
               <span className="text-slate-600">/</span>

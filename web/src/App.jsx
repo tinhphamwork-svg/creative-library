@@ -100,7 +100,7 @@ export default function App() {
     try {
       await save(selectedBrand, row);
       showToast('success', row.id ? 'Đã cập nhật creative' : 'Đã thêm creative mới');
-      setSelectedCreative(null);
+      if (!row.id) setSelectedCreative(null);
     } catch (err) {
       showToast('error', err.message);
     }

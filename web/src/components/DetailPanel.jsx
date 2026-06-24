@@ -146,6 +146,9 @@ export default function DetailPanel({ creative, dropdowns, codes, brandCode,
                   onChange={e => handleSelectChange('status', e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-md px-3 py-2 focus:outline-none focus:border-violet-500"
                 >
+                  {draft.status && !(dropdowns.status || []).includes(draft.status) && (
+                    <option value={draft.status}>{draft.status}</option>
+                  )}
                   {(dropdowns.status || []).map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
@@ -158,6 +161,9 @@ export default function DetailPanel({ creative, dropdowns, codes, brandCode,
                   className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-md px-3 py-2 focus:outline-none focus:border-violet-500"
                 >
                   <option value="">—</option>
+                  {draft.brief_status && draft.brief_status !== '' && !(dropdowns.briefStatus || []).includes(draft.brief_status) && (
+                    <option value={draft.brief_status}>{draft.brief_status}</option>
+                  )}
                   {(dropdowns.briefStatus || []).map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
