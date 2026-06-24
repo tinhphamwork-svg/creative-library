@@ -40,6 +40,6 @@ describe('CreativeCard', () => {
 
   it('hiện border khác màu khi isSelected=true', () => {
     const { container } = render(<CreativeCard creative={mockCreative} isSelected={true} onClick={vi.fn()} />);
-    expect(container.firstChild).toHaveClass('border-indigo-400');
+    expect(container.firstChild).toHaveClass('ring-violet-500');
   });
 });
