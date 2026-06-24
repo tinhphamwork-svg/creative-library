@@ -1,14 +1,6 @@
 import { useState, useEffect } from 'react';
 import CreativeModal from './CreativeModal';
 
-const STATUS_STRIP = {
-  Winning:  'bg-emerald-500',
-  Scaling:  'bg-violet-500',
-  Testing:  'bg-amber-500',
-  Fatigued: 'bg-orange-500',
-  Killed:   'bg-red-500',
-};
-
 function MetricBox({ label, value, highlight }) {
   return (
     <div className={`rounded-lg p-3 text-center ${highlight ? 'bg-emerald-900/30' : 'bg-slate-800'}`}>
