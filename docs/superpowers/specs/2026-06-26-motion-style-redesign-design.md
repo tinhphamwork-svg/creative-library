@@ -55,7 +55,7 @@ Bố cục 4 zone ngang:
 
 Bar nằm giữa topbar và content grid:
 
-- Metric chips (có số thứ tự màu): Spend (violet), ROAS (pink), Click score (green), Convert score (amber)
+- Metric chips (có số thứ tự màu): Spend (violet), ROAS (pink), CTR (green)
 - Mỗi chip có × để remove
 - "+ Add metric" button dạng dashed border
 - Right side: count badge + view mode icon buttons (list / chart / grid)
@@ -82,8 +82,7 @@ Bar nằm giữa topbar và content grid:
 │  ─────────────────────  │
 │  Spend      ₫15.7M +78% │  ← metric row
 │  ROAS       4.5   +44%  │
-│  Click score  ███░░  89 │  ← progress bar
-│  Convert score ██░░░ 64 │
+│  CTR        2.3%  +12%  │  ← metric row
 │  ─────────────────────  │
 │  [Video 9:16]    Minh   │  ← format tag + assignee
 └─────────────────────────┘
@@ -100,9 +99,9 @@ Bar nằm giữa topbar và content grid:
 - Status badge float top-right với backdrop-blur
 
 **Metrics hiển thị:**
-- Chỉ hiển thị metrics đã chọn trong Metric Selector Bar
-- Nếu creative chưa live (draft) → Spend/ROAS hiển thị "—"
-- Progress bar: green nếu score ≥ 70, amber nếu < 70
+- Metrics mặc định: Spend, ROAS, CTR
+- Nếu creative chưa live (draft) → Spend/ROAS/CTR hiển thị "—"
+- Delta % hiển thị màu green nếu dương, red nếu âm
 
 ---
 
@@ -164,7 +163,50 @@ Slide từ phải khi click card. Không thay đổi nhiều so với hiện t�
 
 ---
 
-## 7. Out of Scope
+## 7. Data Pipeline: Meta → Sheet → App
+
+### Hiện trạng (đã có trong Code.gs)
+
+```
+Meta Ads export (manual)
+    ↓
+Google Sheet tab: Meta_Raw
+    ↓ syncMetaData() — match by ad_name code
+Creative rows (spend, roas, ctr, cpm, last_synced được update)
+    ↓ getCreatives()
+Frontend
+```
+
+`syncMetaData()` đã hoạt động: đọc `Meta_Raw`, match creative bằng code trong ad_name, ghi `spend / roas / ctr / cpm / last_synced` vào row creative.
+
+### Thay đổi cần thiết
+
+**Backend (Code.gs):**
+- Không cần thêm logic sync mới — `syncMetaData()` đã đủ
+- `getCreatives()` cần trả về thêm field `last_synced` để frontend hiển thị "synced X phút trước"
+
+**Frontend — UI changes cho sync:**
+- Nút **Sync Meta** trên topbar: hiển thị `last_synced` timestamp của brand (lấy max của tất cả creatives)
+- Tooltip khi hover: "Last synced: 2 giờ trước"
+- Khi đang sync: icon `⟳` animate-spin, button disabled
+- Sau sync xong: toast success + cards tự refresh metrics
+
+**Card — hiển thị metrics:**
+- `spend`: format `₫X.XM` hoặc `₫XXk`
+- `roas`: hiển thị số thập phân 1 chữ số (e.g. `4.5`)
+- `ctr`: hiển thị % (e.g. `2.3%`)
+- Nếu `last_synced` null (chưa sync lần nào) → hiển thị `—` thay vì số
+- Delta % (so sánh period) — **để sau**, hiện tại chỉ hiển thị giá trị tuyệt đối
+
+### Future: tự động hóa Meta → Sheet
+
+Ngoài scope redesign này. Có thể làm sau bằng:
+- Google Apps Script trigger gọi Meta Marketing API tự động theo schedule
+- Hoặc n8n workflow export CSV → import vào Meta_Raw
+
+---
+
+## 9. Out of Scope
 
 - Command palette (Cmd+K) — để sau
 - Dashboard redesign — để sau
