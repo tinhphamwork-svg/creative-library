@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { getBrands, getDropdowns, addBrand, setAuthToken, getAuthToken,
          syncMeta, getActions, addAction, markActionDone,
-         getCodes, saveCode } from './api';
+         getCodes, saveCode, uploadBrandLogo as uploadBrandLogoApi } from './api';
 import { useCreatives } from './hooks/useCreatives';
 import Sidebar from './components/Sidebar';
 import MainArea from './components/MainArea';
@@ -169,8 +169,19 @@ export default function App() {
   async function handleAddBrand(name) {
     try {
       await addBrand(name);
-      setBrands(prev => [...prev, name]);
+      setBrands(prev => [...prev, { name, logoUrl: '' }]);
       showToast('success', `Đã thêm brand: ${name}`);
+    } catch (err) {
+      showToast('error', err.message);
+    }
+  }
+
+  async function handleUploadLogo(brandName, file) {
+    try {
+      await uploadBrandLogoApi(brandName, file);
+      const b = await getBrands();
+      setBrands(b);
+      showToast('success', `Đã upload logo cho ${brandName}`);
     } catch (err) {
       showToast('error', err.message);
     }
@@ -192,7 +203,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-slate-950 overflow-hidden font-sans text-sm text-slate-100">
       <Sidebar
-        brands={brands}
+        brands={brands.map(b => b.name)}
         selectedBrand={selectedBrand}
         selectedProduct={selectedProduct}
         selectedConcept={selectedConcept}
@@ -233,7 +244,7 @@ export default function App() {
         />
       ) : (
         <Dashboard
-          brands={brands}
+          brands={brands.map(b => b.name)}
           cache={cache}
           actions={actions}
           onSelectBrand={(b) => { setSelectedBrand(b); setSelectedProduct(null); setSelectedConcept(null); setSelectedCreative(null); }}

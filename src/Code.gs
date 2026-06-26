@@ -58,6 +58,7 @@ function doGet(e) {
     else if (action === 'getActions')    result = getActions(data.brand);
     else if (action === 'getCodes')      result = getCodes();
     else if (action === 'saveCode')      result = saveCode(data.code, data.type, data.description);
+    else if (action === 'uploadBrandLogo') result = uploadBrandLogo(data.brandName, data.fileBase64, data.mimeType);
     else result = { error: 'Unknown action: ' + action };
   } catch (err) {
     result = { error: err.message };
@@ -69,10 +70,37 @@ function doGet(e) {
 }
 
 // ============================================================
+// BRAND CONFIG
+// ============================================================
+
+const SHEET_BRAND_CONFIG = 'BrandConfig';
+const BRAND_CONFIG_HEADERS = ['name', 'logoUrl'];
+
+function ensureBrandConfigSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_BRAND_CONFIG);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_BRAND_CONFIG);
+    sheet.getRange(1, 1, 1, 2).setValues([BRAND_CONFIG_HEADERS]);
+  }
+  return sheet;
+}
+
+function getBrandConfigMap() {
+  const sheet = ensureBrandConfigSheet();
+  if (sheet.getLastRow() < 2) return {};
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+  const map = {};
+  rows.forEach(([name, logoUrl]) => { if (name) map[name] = logoUrl || ''; });
+  return map;
+}
+
+// ============================================================
 // READ
 // ============================================================
 
-function getBrands() {
+// Hàm nội bộ — trả về string[] để dùng trong các hàm GAS khác
+function getBrandNames() {
   const ss    = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_CONFIG);
   if (!sheet || sheet.getLastRow() < 2) return [];
@@ -81,6 +109,13 @@ function getBrands() {
     .getValues()
     .map(r => r[0])
     .filter(b => b !== '');
+}
+
+// Public API — trả về { name, logoUrl }[] cho frontend
+function getBrands() {
+  const names   = getBrandNames();
+  const logoMap = getBrandConfigMap();
+  return names.map(name => ({ name, logoUrl: logoMap[name] || '' }));
 }
 
 function getCreatives(brand) {
@@ -215,12 +250,54 @@ function addBrand(brand) {
 
   const configSheet = ss.getSheetByName(SHEET_CONFIG);
   if (!configSheet) throw new Error('Config sheet không tồn tại. Chạy setupConfig() trước.');
-  const existing = getBrands();
+  const existing = getBrandNames();
   if (existing.includes(trimmed)) throw new Error('Brand đã tồn tại: ' + trimmed);
   configSheet.appendRow([trimmed]);
 
   ensureBrandSheet(ss, trimmed);
   return { added: trimmed };
+}
+
+function uploadBrandLogo(brandName, fileBase64, mimeType) {
+  if (!brandName || !fileBase64) throw new Error('brandName và fileBase64 là bắt buộc');
+
+  // Upload lên Google Drive, folder "creative-library/brand-logos"
+  const folderName = 'creative-library/brand-logos';
+  let folder;
+  const folderIt = DriveApp.getFoldersByName(folderName);
+  if (folderIt.hasNext()) {
+    folder = folderIt.next();
+  } else {
+    folder = DriveApp.createFolder(folderName);
+  }
+
+  // Xóa logo cũ của brand này nếu có
+  const oldFiles = folder.getFilesByName(brandName);
+  while (oldFiles.hasNext()) oldFiles.next().setTrashed(true);
+
+  // Upload file mới
+  const blob = Utilities.newBlob(
+    Utilities.base64Decode(fileBase64),
+    mimeType || 'image/png',
+    brandName
+  );
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const logoUrl = `https://drive.google.com/uc?export=view&id=${file.getId()}`;
+
+  // Lưu URL vào BrandConfig sheet
+  const sheet = ensureBrandConfigSheet();
+  const rows = sheet.getLastRow() < 2 ? [] :
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+
+  const existingRow = rows.findIndex(r => r[0] === brandName);
+  if (existingRow !== -1) {
+    sheet.getRange(existingRow + 2, 2).setValue(logoUrl);
+  } else {
+    sheet.appendRow([brandName, logoUrl]);
+  }
+
+  return { logoUrl };
 }
 
 // ============================================================
@@ -306,7 +383,7 @@ function saveCode(code, type, description) {
 
 function migrateSheets() {
   const ss     = SpreadsheetApp.getActiveSpreadsheet();
-  const brands = getBrands();
+  const brands = getBrandNames();
   const log    = [];
   brands.forEach(brand => {
     const sheet = ss.getSheetByName(brand);
@@ -410,7 +487,7 @@ function applyUpdates(found, updates) {
 }
 
 function findCreativeByAdCode(ss, adNameCode) {
-  const brands = getBrands();
+  const brands = getBrandNames();
   for (const brand of brands) {
     const sheet = ss.getSheetByName(brand);
     if (!sheet || sheet.getLastRow() < 2) continue;
@@ -425,7 +502,7 @@ function findCreativeByAdCode(ss, adNameCode) {
 }
 
 function findCreativeById(ss, creativeId) {
-  const brands = getBrands();
+  const brands = getBrandNames();
   for (const brand of brands) {
     const sheet = ss.getSheetByName(brand);
     if (!sheet || sheet.getLastRow() < 2) continue;
