@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 body {
-  background-color: #020617;
-  color: #f1f5f9;
+  background-color: #f7f7fa;
+  color: #1f2937;
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
 * { box-sizing: border-box; }
