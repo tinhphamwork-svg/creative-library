@@ -271,10 +271,11 @@ export default function App() {
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white text-sm font-medium z-50 ${
-          toast.type === 'success' ? 'bg-emerald-600' : 'bg-red-500'
-        }`}>
-          {toast.msg}
+        <div className={`fixed bottom-4 right-4 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium z-50 border
+          ${toast.type === 'success'
+            ? 'bg-white text-green-700 border-green-200 shadow-green-100'
+            : 'bg-white text-red-600 border-red-200 shadow-red-100'}`}>
+          {toast.type === 'success' ? '✓ ' : '✕ '}{toast.msg}
         </div>
       )}
     </div>
