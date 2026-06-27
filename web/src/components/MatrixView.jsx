@@ -12,11 +12,11 @@ function getCell(creatives, concept, angle) {
 }
 
 function cellStyle(cell) {
-  if (!cell) return 'bg-slate-800/40 text-slate-600 border border-slate-700/50';
-  if (cell.avgRoas === null) return 'bg-blue-900/40 text-blue-300 border border-blue-700/50 cursor-pointer hover:bg-blue-900/60';
-  if (cell.avgRoas >= 3)   return 'bg-emerald-900/50 text-emerald-300 border border-emerald-700/50 cursor-pointer hover:bg-emerald-900/70';
-  if (cell.avgRoas >= 1.5) return 'bg-amber-900/40 text-amber-300 border border-amber-700/40 cursor-pointer hover:bg-amber-900/60';
-  return 'bg-red-900/40 text-red-300 border border-red-700/40 cursor-pointer hover:bg-red-900/60';
+  if (!cell) return 'bg-gray-50 text-gray-300 border border-gray-100';
+  if (cell.avgRoas === null) return 'bg-blue-50 text-blue-600 border border-blue-100 cursor-pointer hover:bg-blue-100';
+  if (cell.avgRoas >= 3)    return 'bg-emerald-50 text-emerald-700 border border-emerald-100 cursor-pointer hover:bg-emerald-100';
+  if (cell.avgRoas >= 1.5)  return 'bg-amber-50 text-amber-700 border border-amber-100 cursor-pointer hover:bg-amber-100';
+  return 'bg-red-50 text-red-600 border border-red-100 cursor-pointer hover:bg-red-100';
 }
 
 function roasLabel(cell) {
@@ -26,12 +26,10 @@ function roasLabel(cell) {
 }
 
 export default function MatrixView({ creatives, onSelectCreative }) {
-  const [selectedCell, setSelectedCell] = useState(null); // { concept, angle }
+  const [selectedCell, setSelectedCell] = useState(null);
 
   const concepts = [...new Set(creatives.map(c => c.concept).filter(Boolean))].sort();
   const angles   = [...new Set(creatives.map(c => c.angle).filter(Boolean))].sort();
-
-  // Creatives không có concept hoặc angle → hiện riêng
   const uncategorized = creatives.filter(c => !c.concept || !c.angle);
 
   const selectedItems = selectedCell
@@ -46,10 +44,10 @@ export default function MatrixView({ creatives, onSelectCreative }) {
 
   if (concepts.length === 0 || angles.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-slate-600 text-sm gap-2">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm gap-2">
         <span className="text-2xl">⊞</span>
         <p>Chưa đủ data để hiện Matrix View.</p>
-        <p className="text-xs text-slate-700">Cần ít nhất 1 creative có cả Concept và Angle.</p>
+        <p className="text-xs text-gray-300">Cần ít nhất 1 creative có cả Concept và Angle.</p>
       </div>
     );
   }
@@ -57,13 +55,13 @@ export default function MatrixView({ creatives, onSelectCreative }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-slate-500">
-        <span className="font-medium text-slate-400">ROAS:</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-900/50 border border-emerald-700/50 inline-block"/>≥ 3x Win</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-900/40 border border-amber-700/40 inline-block"/>1.5–3x OK</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-900/40 border border-red-700/40 inline-block"/>{'< 1.5x Fail'}</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-900/40 border border-blue-700/50 inline-block"/>Đang test</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-800/40 border border-slate-700/50 inline-block"/>Chưa test</span>
+      <div className="flex items-center gap-4 text-xs text-gray-400">
+        <span className="font-medium text-gray-500">ROAS:</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-50 border border-emerald-100 inline-block"/>≥ 3x Win</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-50 border border-amber-100 inline-block"/>1.5–3x OK</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-50 border border-red-100 inline-block"/>{'< 1.5x Fail'}</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-50 border border-blue-100 inline-block"/>Đang test</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-50 border border-gray-100 inline-block"/>Chưa test</span>
       </div>
 
       {/* Matrix Table */}
@@ -71,9 +69,9 @@ export default function MatrixView({ creatives, onSelectCreative }) {
         <table className="text-xs border-separate border-spacing-1">
           <thead>
             <tr>
-              <th className="text-left p-2 text-slate-500 font-semibold min-w-[120px]">Concept \ Angle</th>
+              <th className="text-left p-2 text-gray-400 font-semibold min-w-[120px]">Concept \ Angle</th>
               {angles.map(angle => (
-                <th key={angle} className="text-center p-2 text-slate-400 font-semibold min-w-[110px] max-w-[140px]">
+                <th key={angle} className="text-center p-2 text-gray-500 font-semibold min-w-[110px] max-w-[140px]">
                   <span className="block truncate" title={angle}>{angle}</span>
                 </th>
               ))}
@@ -82,7 +80,7 @@ export default function MatrixView({ creatives, onSelectCreative }) {
           <tbody>
             {concepts.map(concept => (
               <tr key={concept}>
-                <td className="p-2 font-semibold text-slate-300 align-middle pr-3">
+                <td className="p-2 font-semibold text-gray-600 align-middle pr-3">
                   <span className="block truncate max-w-[160px]" title={concept}>{concept}</span>
                 </td>
                 {angles.map(angle => {
@@ -91,7 +89,7 @@ export default function MatrixView({ creatives, onSelectCreative }) {
                   return (
                     <td key={angle}
                       onClick={() => handleCellClick(concept, angle, cell)}
-                      className={`rounded-lg p-2 text-center transition-all ${cellStyle(cell)} ${isSelected ? 'ring-2 ring-violet-400 ring-offset-1 ring-offset-slate-950' : ''}`}>
+                      className={`rounded-lg p-2 text-center transition-all ${cellStyle(cell)} ${isSelected ? 'ring-2 ring-violet-500 ring-offset-1 ring-offset-[#f7f7fa]' : ''}`}>
                       {cell ? (
                         <>
                           <div className="font-bold text-sm leading-tight">{roasLabel(cell)}</div>
@@ -111,25 +109,25 @@ export default function MatrixView({ creatives, onSelectCreative }) {
 
       {/* Selected cell detail */}
       {selectedCell && selectedItems.length > 0 && (
-        <div className="border border-slate-700 rounded-lg bg-slate-900 p-4">
+        <div className="border border-gray-100 rounded-xl bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-200">
+            <h3 className="text-sm font-semibold text-gray-800">
               {selectedCell.concept} × {selectedCell.angle}
-              <span className="ml-2 text-slate-500 font-normal">({selectedItems.length} creative)</span>
+              <span className="ml-2 text-gray-400 font-normal">({selectedItems.length} creative)</span>
             </h3>
-            <button onClick={() => setSelectedCell(null)} className="text-slate-500 hover:text-slate-300 text-xs">✕ Đóng</button>
+            <button onClick={() => setSelectedCell(null)} className="text-gray-400 hover:text-gray-600 text-xs">✕ Đóng</button>
           </div>
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
             {selectedItems.map(c => (
               <button key={c.id}
                 onClick={() => onSelectCreative(c)}
-                className="text-left p-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-violet-600 transition-colors">
-                <div className="font-medium text-slate-200 text-xs truncate">{c.hook || '(no hook)'}</div>
-                <div className="text-xs text-slate-500 mt-0.5">{c.format} · {c.status}</div>
+                className="text-left p-3 rounded-lg bg-gray-50 hover:bg-violet-50 border border-gray-100 hover:border-violet-200 transition-colors">
+                <div className="font-medium text-gray-700 text-xs truncate">{c.hook || '(no hook)'}</div>
+                <div className="text-xs text-gray-400 mt-0.5">{c.format} · {c.status}</div>
                 <div className="flex gap-3 mt-1.5 text-xs">
-                  {c.roas && <span className="text-emerald-400 font-bold">{Number(c.roas).toFixed(1)}x</span>}
-                  {c.ctr  && <span className="text-slate-500">CTR {c.ctr}%</span>}
-                  {c.spend && <span className="text-slate-500">${Number(c.spend).toLocaleString()}</span>}
+                  {c.roas  && <span className="text-emerald-600 font-bold">{Number(c.roas).toFixed(1)}x</span>}
+                  {c.ctr   && <span className="text-gray-400">CTR {c.ctr}%</span>}
+                  {c.spend && <span className="text-gray-400">${Number(c.spend).toLocaleString()}</span>}
                 </div>
               </button>
             ))}
@@ -137,9 +135,8 @@ export default function MatrixView({ creatives, onSelectCreative }) {
         </div>
       )}
 
-      {/* Uncategorized */}
       {uncategorized.length > 0 && (
-        <div className="text-xs text-slate-600 mt-2">
+        <div className="text-xs text-gray-300 mt-2">
           {uncategorized.length} creative chưa có Concept/Angle → không hiện trong matrix.
         </div>
       )}
