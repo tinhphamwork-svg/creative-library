@@ -32,14 +32,17 @@ export default function Dashboard({ brands, cache, actions, onSelectBrand, onAct
             </div>
           ) : (
             <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-              {brands.map(brand => (
-                <BrandCard
-                  key={brand}
-                  brand={brand}
-                  creatives={cache[brand] || []}
-                  onClick={() => onSelectBrand(brand)}
-                />
-              ))}
+              {brands.map(b => {
+                const name = typeof b === 'string' ? b : b.name;
+                return (
+                  <BrandCard
+                    key={name}
+                    brand={name}
+                    creatives={cache[name] || []}
+                    onClick={() => onSelectBrand(name)}
+                  />
+                );
+              })}
             </div>
           )}
         </div>

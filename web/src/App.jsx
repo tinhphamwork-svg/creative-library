@@ -4,7 +4,8 @@ import { getBrands, getDropdowns, addBrand, setAuthToken, getAuthToken,
          syncMeta, getActions, addAction, markActionDone,
          getCodes, saveCode, uploadBrandLogo as uploadBrandLogoApi } from './api';
 import { useCreatives } from './hooks/useCreatives';
-import Sidebar from './components/Sidebar';
+import Rail from './components/Rail';
+import NavFlyout from './components/NavFlyout';
 import MainArea from './components/MainArea';
 import Dashboard from './components/Dashboard';
 import DetailPanel from './components/DetailPanel';
@@ -28,14 +29,6 @@ export default function App() {
   const [actions, setActions] = useState([]);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [codes, setCodes] = useState({});
-
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    return localStorage.getItem('sidebarOpen') !== 'false';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('sidebarOpen', String(sidebarOpen));
-  }, [sidebarOpen]);
 
   const { cache, loading, error, load, save, remove, getFiltered, getTree } = useCreatives();
 
@@ -189,6 +182,9 @@ export default function App() {
 
   const tree = selectedBrand ? getTree(selectedBrand) : {};
   const creatives = getFiltered(selectedBrand, selectedProduct, selectedConcept);
+  const brandCreatives = selectedBrand ? (cache[selectedBrand] || []) : [];
+  const liveCount = brandCreatives.filter(c => c.status === 'Winning' || c.status === 'Scaling').length;
+  const selectedBrandObj = brands.find(b => b.name === selectedBrand) || null;
   const existingAngles = selectedBrand
     ? [...new Set((cache[selectedBrand] || []).map(c => c.angle).filter(Boolean))]
     : [];
@@ -201,22 +197,29 @@ export default function App() {
     : (selectedBrand || '').slice(0, 3).toUpperCase();
 
   return (
-    <div className="flex h-screen bg-slate-950 overflow-hidden font-sans text-sm text-slate-100">
-      <Sidebar
-        brands={brands.map(b => b.name)}
+    <div className="flex h-screen bg-[#f7f7fa] overflow-hidden font-sans text-sm text-gray-800">
+      <Rail
+        brands={brands}
         selectedBrand={selectedBrand}
-        selectedProduct={selectedProduct}
-        selectedConcept={selectedConcept}
-        tree={tree}
         onSelectBrand={(b) => { setSelectedBrand(b); setSelectedProduct(null); setSelectedConcept(null); setSelectedCreative(null); }}
-        onSelectProduct={(p) => { setSelectedProduct(p); setSelectedConcept(null); setSelectedCreative(null); }}
-        onSelectConcept={(c) => { setSelectedConcept(c); setSelectedCreative(null); }}
         onAddBrand={handleAddBrand}
+        onUploadLogo={handleUploadLogo}
         userEmail={userEmail}
         onLogout={handleLogout}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen(o => !o)}
       />
+
+      {selectedBrand && (
+        <NavFlyout
+          brand={selectedBrandObj}
+          creativeCount={brandCreatives.length}
+          liveCount={liveCount}
+          tree={tree}
+          selectedProduct={selectedProduct}
+          selectedConcept={selectedConcept}
+          onSelectProduct={(p) => { setSelectedProduct(p); setSelectedConcept(null); setSelectedCreative(null); }}
+          onSelectConcept={(c) => { setSelectedConcept(c); setSelectedCreative(null); }}
+        />
+      )}
 
       {selectedBrand ? (
         <MainArea
@@ -244,7 +247,7 @@ export default function App() {
         />
       ) : (
         <Dashboard
-          brands={brands.map(b => b.name)}
+          brands={brands}
           cache={cache}
           actions={actions}
           onSelectBrand={(b) => { setSelectedBrand(b); setSelectedProduct(null); setSelectedConcept(null); setSelectedCreative(null); }}
