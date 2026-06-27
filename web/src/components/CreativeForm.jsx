@@ -5,7 +5,7 @@ import CodeSelect from './CodeSelect';
 function Field({ label, children }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">{label}</label>
+      <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">{label}</label>
       {children}
     </div>
   );
@@ -14,7 +14,7 @@ function Field({ label, children }) {
 function TextInput({ value, onChange, placeholder, required }) {
   return (
     <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required}
-      className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:border-violet-400 transition-colors" />
   );
 }
 
@@ -123,10 +123,10 @@ export default function CreativeForm({ creative, dropdowns, codes = {}, brandCod
 
       {/* Ad Name Code — hiện ở đầu nếu đã generate được */}
       {adNameReady && (
-        <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-4 py-3">
-          <span className="font-mono text-emerald-400 text-sm font-bold tracking-wider flex-1">{form.ad_name_code}</span>
+        <div className="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-xl px-4 py-3">
+          <span className="font-mono text-violet-700 text-sm font-bold tracking-wider flex-1">{form.ad_name_code}</span>
           <button type="button" onClick={copyAdName}
-            className="text-xs text-slate-300 hover:text-white bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded transition-colors">
+            className="text-xs text-violet-600 hover:text-violet-800 bg-violet-100 hover:bg-violet-200 px-2.5 py-1 rounded-lg transition-colors">
             {copied ? '✓ Copied' : 'Copy'}
           </button>
         </div>
@@ -162,7 +162,7 @@ export default function CreativeForm({ creative, dropdowns, codes = {}, brandCod
       <div className="grid grid-cols-2 gap-3">
         <Field label="Version">
           <input type="number" min="1" value={form.version} onChange={e => set('version', e.target.value)}
-            className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:border-violet-400 transition-colors" />
         </Field>
         <Field label="Product">
           <TextInput value={form.product} onChange={v => set('product', v)} placeholder="Tên sản phẩm" />
@@ -177,13 +177,13 @@ export default function CreativeForm({ creative, dropdowns, codes = {}, brandCod
       <div className="grid grid-cols-2 gap-3">
         <Field label="Status">
           <select value={form.status} onChange={e => set('status', e.target.value)}
-            className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:border-violet-400 transition-colors">
             {(dropdowns.status || []).map(s => <option key={s}>{s}</option>)}
           </select>
         </Field>
         <Field label="Brief Status">
           <select value={form.brief_status} onChange={e => set('brief_status', e.target.value)}
-            className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:border-violet-400 transition-colors">
             {(dropdowns.briefStatus || []).map(s => <option key={s}>{s}</option>)}
           </select>
         </Field>
@@ -192,7 +192,7 @@ export default function CreativeForm({ creative, dropdowns, codes = {}, brandCod
         </Field>
         <Field label="Launch Date">
           <input type="date" value={form.launch_date} onChange={e => set('launch_date', e.target.value)}
-            className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:border-violet-400 transition-colors" />
         </Field>
       </div>
 
@@ -200,7 +200,7 @@ export default function CreativeForm({ creative, dropdowns, codes = {}, brandCod
         {[['spend','Spend ($)'],['roas','ROAS'],['ctr','CTR (%)'],['cpm','CPM']].map(([field, lbl]) => (
           <Field key={field} label={lbl}>
             <input type="number" step="any" value={form[field]} onChange={e => set(field, e.target.value)}
-              className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:border-violet-400 transition-colors" />
           </Field>
         ))}
       </div>
@@ -214,11 +214,11 @@ export default function CreativeForm({ creative, dropdowns, codes = {}, brandCod
           className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
       </Field>
 
-      <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+      <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
         <button type="button" onClick={onCancel}
-          className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-md transition-colors">Hủy</button>
+          className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">Hủy</button>
         <button type="submit" disabled={saving}
-          className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors disabled:opacity-50">
+          className="px-4 py-2 text-sm bg-violet-700 hover:bg-violet-800 text-white font-semibold rounded-lg transition-colors disabled:opacity-50">
           {saving ? 'Đang lưu...' : (form.id ? 'Cập nhật' : 'Thêm creative')}
         </button>
       </div>
