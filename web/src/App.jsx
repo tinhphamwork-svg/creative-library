@@ -11,6 +11,10 @@ import Dashboard from './components/Dashboard';
 import DetailPanel from './components/DetailPanel';
 import LoginPage from './components/LoginPage';
 
+function normalizeBrands(raw) {
+  return (raw || []).map(b => typeof b === 'string' ? { name: b, logoUrl: '' } : b);
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(!!getAuthToken());
   const [authError, setAuthError] = useState(null);
@@ -38,7 +42,7 @@ export default function App() {
       const payload = JSON.parse(atob(credential.split('.')[1]));
       setUserEmail(payload.email || '');
       const [b, d, c] = await Promise.all([getBrands(), getDropdowns(), getCodes()]);
-      setBrands(b);
+      setBrands(normalizeBrands(b));
       setDropdowns(d);
       setCodes(c);
       setAuthed(true);
@@ -62,7 +66,7 @@ export default function App() {
   useEffect(() => {
     if (authed && brands.length === 0) {
       Promise.all([getBrands(), getDropdowns(), getCodes()])
-        .then(([b, d, c]) => { setBrands(b); setDropdowns(d); setCodes(c); })
+        .then(([b, d, c]) => { setBrands(normalizeBrands(b)); setDropdowns(d); setCodes(c); })
         .catch(err => {
           if (err.message.includes('Unauthorized') || err.message.includes('Access denied')) {
             setAuthToken('');
